@@ -276,8 +276,15 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
   </footer>
 
   <script>
-document.getElementById("enquiryForm").addEventListener("submit", function (e) {
+
+const ENQUIRY_API =
+  "https://script.google.com/macros/s/AKfycbxM0cmmlzCDWrNn00gYt7Uw6yJiDk3vhK2t3a-epbtuv7lAivkrC6mjs0Xt3wX1HF-L/exec";
+
+document.getElementById("enquiryForm").addEventListener("submit", async function (e) {
   e.preventDefault();
+
+  const form = this;
+  const submitButton = form.querySelector('button[type="submit"]');
 
   const name = document.getElementById("name").value.trim();
   const phone = document.getElementById("phone").value.trim();
@@ -286,24 +293,62 @@ document.getElementById("enquiryForm").addEventListener("submit", function (e) {
   const guests = document.getElementById("guests").value;
   const message = document.getElementById("message").value.trim();
 
-  const dateText = date ? new Date(date + "T00:00:00").toLocaleDateString("en-IN") : "Not specified";
+  const emailField = document.getElementById("email");
+  const email = emailField ? emailField.value.trim() : "";
 
-  const text =
-`Hello L's Park Club House,
+  if (!name || !phone || !facility) {
+    alert("Please fill in your name, mobile number and facility.");
+    return;
+  }
 
-I would like to make an enquiry.
+  submitButton.disabled = true;
+  submitButton.textContent = "Sending...";
 
-Name: ${name}
-Phone: ${phone}
-Facility: ${facility}
-Preferred date: ${dateText}
-Approx. guests: ${guests || "Not specified"}
-Message: ${message || "No additional message"}
+  const payload = {
+    name: name,
+    phone: phone,
+    email: email,
+    facility: facility,
+    date: date,
+    guests: guests,
+    message: message
+  };
 
-Please share availability and pricing. Thank you.`;
+  try {
+    const response = await fetch(ENQUIRY_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
 
-  const whatsappNumber = "919846718106";
-  window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`, "_blank");
+    const result = await response.json();
+
+    if (result.success) {
+      form.reset();
+
+      alert(
+        "Thank you! Your enquiry has been received.\n\n" +
+        "Enquiry ID: " + result.enquiryId +
+        "\n\nOur team will contact you shortly."
+      );
+    } else {
+      throw new Error(result.error || "Unable to save enquiry.");
+    }
+
+  } catch (error) {
+    console.error("Enquiry submission error:", error);
+
+    alert(
+      "Sorry, we couldn't submit your enquiry right now.\n\n" +
+      "Please contact us on WhatsApp or call us directly."
+    );
+
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Send Enquiry";
+  }
 });
 
 </script>
