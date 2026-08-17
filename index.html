@@ -359,7 +359,46 @@ Preferred date: ${dateText}
 Approx. guests: ${guests || "Not specified"}
 Message: ${message || "No additional message"}
 
-Please share availability and pricing. Thank you.`;
+  const payload = {
+    name: name,
+    phone: phone,
+    email: email,
+    facility: facility,
+    date: date,
+    guests: guests,
+    message: message
+  };
+
+  try {
+    const response = await fetch(ENQUIRY_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      form.reset();
+
+      alert(
+        "Thank you! Your enquiry has been received.\n\n" +
+        "Enquiry ID: " + result.enquiryId +
+        "\n\nOur team will contact you shortly."
+      );
+    } else {
+      throw new Error(result.error || "Unable to save enquiry.");
+    }
+
+  } catch (error) {
+    console.error("Enquiry submission error:", error);
+
+    alert(
+      "Sorry, we couldn't submit your enquiry right now.\n\n" +
+      "Please contact us on WhatsApp or call us directly."
+    );
 
       const whatsappNumber = "919846718106";
       window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`, "_blank");
@@ -383,7 +422,14 @@ Please share availability and pricing. Thank you.`;
 
   } finally {
     submitButton.disabled = false;
+<<<<<<< HEAD
     submitButton.textContent = "💬 Send Enquiry on WhatsApp";
+=======
+    setTimeout(() => { submitButton.textContent = "Send Enquiry"; }, 3000);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Send Enquiry";
+>>>>>>> 77988bdde0fa6e99ae75a7b76530ecaef866efa5
   }
 });
 
