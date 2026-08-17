@@ -246,6 +246,19 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
           <button class="btn btn-yellow full" type="submit">💬 Send Enquiry on WhatsApp</button>
           <p class="form-note">We'll prepare your enquiry message and open WhatsApp.</p>
         </form>
+
+        <div id="confirmationPanel" class="form-card" style="display:none;">
+          <div style="text-align:center;">
+            <div style="font-size:40px;margin-bottom:10px;">✅</div>
+            <h3 style="margin:0 0 8px;font-size:22px;">Enquiry received!</h3>
+            <p style="color:var(--muted);margin:0 0 6px;">Reference ID</p>
+            <p id="confEnquiryId" style="font-size:20px;font-weight:700;color:#4f83b6;margin:0 0 18px;"></p>
+            <p style="color:var(--muted);margin:0 0 20px;">We've saved your enquiry and opened WhatsApp with your details pre-filled. Please send that message to confirm — our team usually replies within a few hours.</p>
+            <a class="btn btn-outline-blue" href="https://wa.me/919846718106" target="_blank" rel="noopener" style="margin-bottom:10px;display:inline-flex;">Reopen WhatsApp</a>
+            <br>
+            <a href="#enquire" id="sendAnotherLink" style="display:inline-block;margin-top:10px;color:#4f83b6;font-weight:600;">Send another enquiry</a>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -351,7 +364,9 @@ Please share availability and pricing. Thank you.`;
       const whatsappNumber = "919846718106";
       window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`, "_blank");
 
-      submitButton.textContent = `Saved as ${result.enquiryId} ✓`;
+      document.getElementById("confEnquiryId").textContent = result.enquiryId;
+      form.style.display = "none";
+      document.getElementById("confirmationPanel").style.display = "block";
       form.reset();
 
     } else {
@@ -368,8 +383,14 @@ Please share availability and pricing. Thank you.`;
 
   } finally {
     submitButton.disabled = false;
-    setTimeout(() => { submitButton.textContent = "Send Enquiry"; }, 3000);
+    submitButton.textContent = "💬 Send Enquiry on WhatsApp";
   }
+});
+
+document.getElementById("sendAnotherLink").addEventListener("click", function (e) {
+  e.preventDefault();
+  document.getElementById("confirmationPanel").style.display = "none";
+  document.getElementById("enquiryForm").style.display = "";
 });
 
 </script>
