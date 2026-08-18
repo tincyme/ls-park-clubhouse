@@ -294,7 +294,28 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
   <script>
 
 const ENQUIRY_API =
-  "https://script.google.com/macros/s/AKfycbxM0cmmlzCDWrNn00gYt7Uw6yJiDk3vhK2t3a-epbtuv7lAivkrC6mjs0Xt3wX1HF-L/exec";
+  "https://script.google.com/macros/s/AKfycbwSGAt5wWrnMFWZ_vO8InNrLH1rd3vvmSpjS_k9evtJQfhEkeyPp5LrnREX0_866JnlCw/exec";
+
+function getEnquirySource() {
+  const params = new URLSearchParams(window.location.search);
+  const utmSource = params.get("utm_source");
+  if (utmSource) return utmSource;
+
+  if (document.referrer) {
+    try {
+      const host = new URL(document.referrer).hostname.replace("www.", "");
+      if (host.includes("google")) return "Google";
+      if (host.includes("facebook")) return "Facebook";
+      if (host.includes("instagram")) return "Instagram";
+      if (host.includes("whatsapp")) return "WhatsApp";
+      if (host.includes("github.io") || host === window.location.hostname) return "Direct/Website";
+      return host;
+    } catch (e) {
+      return "Direct/Website";
+    }
+  }
+  return "Direct/Website";
+}
 
 document.getElementById("enquiryForm").addEventListener("submit", async function (e) {
   e.preventDefault();
@@ -320,6 +341,11 @@ document.getElementById("enquiryForm").addEventListener("submit", async function
   submitButton.disabled = true;
   submitButton.textContent = "Sending...";
 
+  // Open a blank tab NOW, synchronously within the click — browsers block
+  // window.open() if it happens after an await, since it no longer looks
+  // like a direct user action. We fill in the real URL once we have it.
+  const whatsappWindow = window.open("", "_blank");
+
   const payload = {
     name: name,
     phone: phone,
@@ -327,7 +353,8 @@ document.getElementById("enquiryForm").addEventListener("submit", async function
     facility: facility,
     date: date,
     guests: guests,
-    message: message
+    message: message,
+    source: getEnquirySource()
   };
 
   try {
@@ -359,49 +386,17 @@ Preferred date: ${dateText}
 Approx. guests: ${guests || "Not specified"}
 Message: ${message || "No additional message"}
 
-  const payload = {
-    name: name,
-    phone: phone,
-    email: email,
-    facility: facility,
-    date: date,
-    guests: guests,
-    message: message
-  };
-
-  try {
-    const response = await fetch(ENQUIRY_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      form.reset();
-
-      alert(
-        "Thank you! Your enquiry has been received.\n\n" +
-        "Enquiry ID: " + result.enquiryId +
-        "\n\nOur team will contact you shortly."
-      );
-    } else {
-      throw new Error(result.error || "Unable to save enquiry.");
-    }
-
-  } catch (error) {
-    console.error("Enquiry submission error:", error);
-
-    alert(
-      "Sorry, we couldn't submit your enquiry right now.\n\n" +
-      "Please contact us on WhatsApp or call us directly."
-    );
+Please share availability and pricing. Thank you.`;
 
       const whatsappNumber = "919846718106";
-      window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`, "_blank");
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`;
+
+      if (whatsappWindow && !whatsappWindow.closed) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        // Tab was blocked despite the synchronous open (rare) — try once more.
+        window.open(whatsappUrl, "_blank");
+      }
 
       document.getElementById("confEnquiryId").textContent = result.enquiryId;
       form.style.display = "none";
@@ -409,10 +404,12 @@ Message: ${message || "No additional message"}
       form.reset();
 
     } else {
+      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       throw new Error(result.error || "Unable to save enquiry.");
     }
 
   } catch (error) {
+    if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
     console.error("Enquiry submission error:", error);
 
     alert(
@@ -422,14 +419,7 @@ Message: ${message || "No additional message"}
 
   } finally {
     submitButton.disabled = false;
-<<<<<<< HEAD
     submitButton.textContent = "💬 Send Enquiry on WhatsApp";
-=======
-    setTimeout(() => { submitButton.textContent = "Send Enquiry"; }, 3000);
-  } finally {
-    submitButton.disabled = false;
-    submitButton.textContent = "Send Enquiry";
->>>>>>> 77988bdde0fa6e99ae75a7b76530ecaef866efa5
   }
 });
 
