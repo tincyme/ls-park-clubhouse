@@ -59,10 +59,15 @@ h1 span{color:#b18b35}
 .light h2{color:#315f88}
 .uses{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .uses div{border:1px solid rgba(79,131,182,.25);padding:18px;border-radius:8px;text-align:center;font-weight:600}
-.gallery{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-.gallery img{width:100%;max-height:620px;object-fit:contain;background:#e9f2f7;border-radius:12px}
+.gallery-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:40px}
+.gallery-grid figure{position:relative;margin:0;border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:#e9f2f7}
+.gallery-grid img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.gallery-grid figure:hover img{transform:scale(1.06)}
+.gallery-grid figcaption{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;font-size:12px;font-weight:700;letter-spacing:.3px;color:#ffffff;background:linear-gradient(to top,rgba(6,25,27,.78),rgba(6,25,27,0))}
+.gallery-note{text-align:center;max-width:560px;margin:0 auto}
 .gallery-note h3{font-size:28px;margin:0 0 10px}
 .gallery-note p{color:var(--muted);font-size:17px;margin-bottom:25px}
+@media(min-width:700px){.gallery-grid{grid-template-columns:repeat(3,1fr)}}
 .enquiry-section{background:#4f83b6;color:#ffffff;padding:85px 0}
 .enquiry-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:60px;align-items:start}
 .enquiry-section h2{color:#315f88}
@@ -91,7 +96,8 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
   .nav-cta{padding:9px 13px;font-size:13px}
   .hero{min-height:600px}
   .hero-content{padding:60px 0}
-  .intro-grid,.gallery,.enquiry-grid{grid-template-columns:1fr;gap:30px}
+  .intro-grid,.enquiry-grid{grid-template-columns:1fr;gap:30px}
+  .gallery-grid{gap:10px}
   .cards{grid-template-columns:1fr 1fr}
   .uses{grid-template-columns:1fr 1fr}
   .contact-grid,.footer-inner{flex-direction:column;align-items:flex-start}
@@ -197,9 +203,18 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
           <p class="eyebrow dark">A QUICK LOOK</p>
           <h2>Gallery</h2>
         </div>
-        <div class="gallery">
-          <img src="images/frontview.jpeg" alt="PeedsPark front view">         
-		 <div class="gallery-note">
+        <div class="gallery-grid">
+          <figure><img src="images/frontview.jpeg" alt="PeedsPark club house front view" loading="lazy"><figcaption>Front View</figcaption></figure>
+          <figure><img src="images/frontview2.jpeg" alt="PeedsPark club house and grounds" loading="lazy"><figcaption>Grounds</figcaption></figure>
+          <figure><img src="images/Non-ACHall.jpeg" alt="Non-AC Hall entrance" loading="lazy"><figcaption>Non-AC Hall Entrance</figcaption></figure>
+          <figure><img src="images/hall1.jpeg" alt="Hall decorated for a celebration" loading="lazy"><figcaption>Hall Decor</figcaption></figure>
+          <figure><img src="images/hall2.jpeg" alt="Hall entrance set up for an event" loading="lazy"><figcaption>Hall Entrance</figcaption></figure>
+          <figure><img src="images/hall3.jpeg" alt="Hall dessert table set up for a celebration" loading="lazy"><figcaption>Hall Setup</figcaption></figure>
+          <figure><img src="images/lawn1.jpeg" alt="PeedsPark party lawn" loading="lazy"><figcaption>Party Lawn</figcaption></figure>
+          <figure><img src="images/garden1.jpeg" alt="PeedsPark garden and pool area" loading="lazy"><figcaption>Garden &amp; Pool Area</figcaption></figure>
+          <figure><img src="images/Badmintoncourtoutside.jpeg" alt="Badminton court building, outside view" loading="lazy"><figcaption>Badminton Court</figcaption></figure>
+        </div>
+        <div class="gallery-note">
             <h3>Planning a visit?</h3>
             <p>Contact us to check availability, pricing and facility details for your date.</p>
             <a class="btn btn-blue" href="#availability">Check Availability</a>
