@@ -27,6 +27,13 @@
 //   Bookings: Booking ID | Request ID | Customer ID | Facility ID |
 //     Resource ID | Booking Date | Start Time | End Time | Booking Mode |
 //     Guests | Status | Payment Status | Created Date | Notes
+//     -- Payment Status (column L) is the ONLY place payment is tracked.
+//     A pending request has no Bookings row yet, so it can't be "unpaid"
+//     there -- instead, a New request simply can't become a Bookings row
+//     at all until "Mark payment received" is run on it (see
+//     confirmBookingWithPaymentCore_). That's what makes an unpaid
+//     request unconfirmable, without a second Payment Status column on
+//     Booking Requests.
 //   Blocked Slots: Block ID | Facility ID | Resource ID | Block Date |
 //     Start Time | End Time | Reason | Status | Notes
 //   Customers: Customer ID | Name | Mobile | Email | Marketing Opt-In |
@@ -789,9 +796,6 @@ function doPost(e) {
 
       let result;
       switch (data.action) {
-        case "approveBookingRequest":
-          result = approveBookingRequestCore_(data.params.requestId);
-          break;
         case "rejectBookingRequest":
           result = rejectBookingRequestCore_(data.params.requestId);
           break;
@@ -799,7 +803,7 @@ function doPost(e) {
           result = cancelBookingCore_(data.params.bookingId);
           break;
         case "markPaymentReceived":
-          result = markPaymentReceivedCore_(data.params.bookingId);
+          result = markPaymentReceivedCore_(data.params.id, data.params.paymentStatus);
           break;
         case "blockSlot":
           result = blockSlotCore_(data.params.facilityName, data.params.resourceId, data.params.blockDate, data.params.startTime, data.params.endTime, data.params.reason);
@@ -895,7 +899,25 @@ function resolveSlotTimes_(slotName) {
 // Managers use these tools even if the underlying sheets are protected
 // to Admin-only direct editing.
 
-function approveBookingRequestCore_(requestId) {
+// Facilities that take a 50% advance instead of full payment upfront.
+// Pool and Badminton are paid in full early, so they're deliberately
+// NOT in this list -- confirmBookingWithPaymentCore_ refuses a
+// "Partial" payment status for any facility not listed here.
+const PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS = ["F002", "F003"]; // AC Hall, Non-AC Hall
+
+// The ONLY way a "New" booking request becomes a Confirmed Bookings row.
+// There is no separate plain "Approve" anymore, and no Payment Status
+// column on Booking Requests -- payment is recorded directly on the
+// Bookings row (its existing Payment Status column) at the moment it's
+// created, via paymentStatus ("Paid" or "Partial"). A request simply
+// cannot become a booking without this being called, which is what
+// makes an unpaid request unconfirmable.
+function confirmBookingWithPaymentCore_(requestId, paymentStatus) {
+  const status = String(paymentStatus || "").trim();
+  if (status !== "Paid" && status !== "Partial") {
+    return { success: false, error: "Payment status must be \"Paid\" or \"Partial\", got: " + paymentStatus };
+  }
+
   const requestsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName("Booking Requests");
   const lastRow = requestsSheet.getLastRow();
   if (lastRow < 2) return { success: false, error: "No booking requests found." };
@@ -906,6 +928,14 @@ function approveBookingRequestCore_(requestId) {
 
   const row = rows[rowIndex];
   const [ , customerId, facilityId, resourceId, requestDate, slotName, bookingMode, guests ] = row;
+  const currentReqStatus = String(row[10] || "").trim();
+  if (currentReqStatus !== "New") {
+    return { success: false, error: "Request " + requestId + " is already \"" + currentReqStatus + "\" -- only a New request can be confirmed." };
+  }
+
+  if (status === "Partial" && PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS.indexOf(facilityId) === -1) {
+    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL to confirm -- Partial is only for Hall bookings (50% advance). Collect the remaining payment first, or mark it Paid." };
+  }
 
   const slotTimes = resolveSlotTimes_(slotName);
   if (!slotTimes) return { success: false, error: "Could not determine start/end time for slot: " + slotName };
@@ -916,10 +946,10 @@ function approveBookingRequestCore_(requestId) {
     const mode = bookingMode === "Exclusive" ? "Exclusive" : "Shared";
 
     if (mode === "Exclusive" && capacity.minRemaining < POOL_MAX_CAPACITY) {
-      return { success: false, error: "Cannot approve as Exclusive: " + capacity.worstHour + " already has another Confirmed booking. Reject this request, or contact the customer to adjust before approving." };
+      return { success: false, error: "Cannot confirm as Exclusive: " + capacity.worstHour + " already has another Confirmed booking. Reject this request, or contact the customer to adjust before confirming." };
     }
     if (mode === "Shared" && requestedGuests > capacity.minRemaining) {
-      return { success: false, error: "Cannot approve — only " + capacity.minRemaining + " spot(s) left around " + capacity.worstHour + ", but this request is for " + requestedGuests + ". Reject this request, or contact the customer to reduce their guest count before approving." };
+      return { success: false, error: "Cannot confirm — only " + capacity.minRemaining + " spot(s) left around " + capacity.worstHour + ", but this request is for " + requestedGuests + ". Reject this request, or contact the customer to reduce their guest count before confirming." };
     }
   }
 
@@ -929,7 +959,7 @@ function approveBookingRequestCore_(requestId) {
   const values = [
     bookingId, requestId, customerId, facilityId, resourceId || "",
     String(requestDate).trim(), slotTimes.start, slotTimes.end,
-    bookingMode || "Standard", guests || "", "Confirmed", "Unpaid", new Date(), ""
+    bookingMode || "Standard", guests || "", "Confirmed", status, new Date(), ""
   ];
   appendRowSafely_(bookingsSheet, values, [6, 7, 8]);
 
@@ -937,13 +967,16 @@ function approveBookingRequestCore_(requestId) {
 
   const customer = findCustomerById_(customerId);
   const facilityName = facilityNameById_(facilityId);
+  const paymentNote = status === "Partial"
+    ? "\n\nWe've received your 50% advance. The remaining balance is due before/at your slot."
+    : "";
   const whatsappText =
     "Hello" + (customer ? " " + customer.name : "") + ",\n\n" +
     "Your booking is CONFIRMED!\n\n" +
     "Booking ID: " + bookingId + "\n" +
     "Facility: " + facilityName + "\n" +
     "Date: " + requestDate + "\n" +
-    "Time: " + slotTimes.start + "–" + slotTimes.end + "\n\n" +
+    "Time: " + slotTimes.start + "–" + slotTimes.end + paymentNote + "\n\n" +
     "Thank you for choosing PeedsPark Club House!";
 
   if (customer && customer.email) {
@@ -952,7 +985,7 @@ function approveBookingRequestCore_(requestId) {
 
   return {
     success: true,
-    message: "Booking " + bookingId + " confirmed for request " + requestId + ".",
+    message: "Booking " + bookingId + " confirmed for request " + requestId + " (Payment: " + status + ").",
     customerPhone: customer ? customer.phone : "",
     customerEmailSent: !!(customer && customer.email),
     whatsappText: whatsappText
@@ -1027,7 +1060,41 @@ function cancelBookingCore_(bookingId) {
   };
 }
 
-function markPaymentReceivedCore_(bookingId) {
+// Single entry point for "Mark payment received." One ID box, works two
+// ways depending on what's typed in:
+//   - a Request ID (REQ-...): the request is still pending -- this
+//     confirms it (capacity checks, creates the Bookings row with this
+//     Payment Status already set, notifies the customer). This is now
+//     the ONLY way a New request becomes a Confirmed booking.
+//   - a Booking ID (B-...): already confirmed -- this just updates the
+//     Payment Status on that existing Bookings row (e.g. a Hall booking
+//     going from Partial to Paid once the balance comes in) and sends a
+//     lighter "payment received" note, without re-confirming anything.
+// There is deliberately only ONE Payment Status column in the whole
+// system -- on Bookings -- so nothing needs to be kept in sync.
+function markPaymentReceivedCore_(id, paymentStatus) {
+  const cleanId = String(id || "").trim();
+
+  if (cleanId.indexOf("REQ-") === 0) {
+    return confirmBookingWithPaymentCore_(cleanId, paymentStatus);
+  }
+
+  if (cleanId.indexOf("B-") === 0) {
+    return updateBookingPaymentStatusCore_(cleanId, paymentStatus);
+  }
+
+  return { success: false, error: "\"" + id + "\" doesn't look like a Request ID (starts REQ-) or a Booking ID (starts B-)." };
+}
+
+// Updates the Payment Status on an ALREADY-CONFIRMED booking (e.g. Hall
+// balance paid after the 50% advance). Does not touch Booking Requests
+// or Bookings status -- the booking is already Confirmed.
+function updateBookingPaymentStatusCore_(bookingId, paymentStatus) {
+  const status = String(paymentStatus || "").trim();
+  if (status !== "Paid" && status !== "Partial") {
+    return { success: false, error: "Payment status must be \"Paid\" or \"Partial\", got: " + paymentStatus };
+  }
+
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName("Bookings");
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: false, error: "No bookings found." };
@@ -1036,20 +1103,28 @@ function markPaymentReceivedCore_(bookingId) {
   const rowIndex = rows.findIndex(function (row) { return String(row[0]).trim() === bookingId; });
   if (rowIndex === -1) return { success: false, error: "Booking ID not found: " + bookingId };
 
-  sheet.getRange(rowIndex + 2, 12).setValue("Paid"); // Payment Status column L
-
   const bookingRow = rows[rowIndex];
-  const customerId = bookingRow[2];
   const facilityId = bookingRow[3];
+
+  if (status === "Partial" && PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS.indexOf(facilityId) === -1) {
+    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL -- Partial is only for Hall bookings (50% advance)." };
+  }
+
+  sheet.getRange(rowIndex + 2, 12).setValue(status); // Payment Status column L
+
+  const customerId = bookingRow[2];
   const bookingDate = bookingRow[5];
   const startTime = bookingRow[6];
   const endTime = bookingRow[7];
 
   const customer = findCustomerById_(customerId);
   const facilityName = facilityNameById_(facilityId);
+  const paymentLine = status === "Paid"
+    ? "We've received your payment in full. Thank you!"
+    : "We've received your 50% advance. The remaining balance is due before/at your slot.";
   const whatsappText =
     "Hello" + (customer ? " " + customer.name : "") + ",\n\n" +
-    "We've received your payment. Thank you!\n\n" +
+    paymentLine + "\n\n" +
     "Booking ID: " + bookingId + "\n" +
     "Facility: " + facilityName + "\n" +
     "Date: " + bookingDate + "\n" +
@@ -1062,7 +1137,7 @@ function markPaymentReceivedCore_(bookingId) {
 
   return {
     success: true,
-    message: "Booking " + bookingId + " marked as Paid.",
+    message: "Booking " + bookingId + " Payment Status set to " + status + ".",
     customerPhone: customer ? customer.phone : "",
     customerEmailSent: !!(customer && customer.email),
     whatsappText: whatsappText
@@ -1130,24 +1205,6 @@ function closeReservedBadmintonSlotCore_(unblockId) {
 // instead of writing to the Sheet directly under the clicking user's
 // own permissions.
 
-function approveBookingRequest() {
-  if (!requireRole_(["Admin", "Manager"])) return;
-
-  const ui = SpreadsheetApp.getUi();
-  const response = ui.prompt("Approve Booking Request", "Enter the Request ID (e.g. REQ-1723...):", ui.ButtonSet.OK_CANCEL);
-  if (response.getSelectedButton() !== ui.Button.OK) return;
-
-  const requestId = response.getResponseText().trim();
-  const result = callAdminAction_("approveBookingRequest", { requestId: requestId });
-
-  if (!result.success) {
-    ui.alert("Could not approve: " + result.error);
-    return;
-  }
-
-  showResultWithWhatsApp_("Booking Confirmed", result.message, result.customerPhone, result.whatsappText, result.customerEmailSent);
-}
-
 function rejectBookingRequest() {
   if (!requireRole_(["Admin", "Manager"])) return;
 
@@ -1182,15 +1239,37 @@ function cancelBooking() {
 
 // ── Mark a booking's payment as received ────────────────────────────────
 
+// This is the ONLY way a "New" booking request becomes a Confirmed
+// booking (there's no separate plain "Approve" anymore) -- run it here
+// once the customer has paid, and it records the payment, confirms the
+// booking, and notifies the customer in one go. Also works on an
+// already-confirmed Booking ID, to update its Payment Status later
+// (e.g. a Hall booking's Partial advance becoming Paid in full).
 function markPaymentReceived() {
   if (!requireRole_(["Admin", "Manager"])) return;
 
   const ui = SpreadsheetApp.getUi();
-  const response = ui.prompt("Mark Payment Received", "Enter the Booking ID (e.g. B-1723...):", ui.ButtonSet.OK_CANCEL);
-  if (response.getSelectedButton() !== ui.Button.OK) return;
+  const idResp = ui.prompt(
+    "Mark Payment Received",
+    "Enter the Request ID (e.g. REQ-1723...) to confirm a pending request, " +
+    "OR the Booking ID (e.g. B-1723...) to update payment on an already-confirmed booking:",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (idResp.getSelectedButton() !== ui.Button.OK) return;
+  const id = idResp.getResponseText().trim();
+  if (!id) return;
 
-  const bookingId = response.getResponseText().trim();
-  const result = callAdminAction_("markPaymentReceived", { bookingId: bookingId });
+  const statusResp = ui.alert(
+    "Payment amount",
+    "Click YES if paid in FULL.\n\n" +
+    "Click NO if this is a PARTIAL payment (Hall's 50% advance only — Pool/Badminton must be paid in full).\n\n" +
+    "Click CANCEL to abort.",
+    ui.ButtonSet.YES_NO_CANCEL
+  );
+  if (statusResp === ui.Button.CANCEL) return;
+  const paymentStatus = statusResp === ui.Button.YES ? "Paid" : "Partial";
+
+  const result = callAdminAction_("markPaymentReceived", { id: id, paymentStatus: paymentStatus });
 
   if (!result.success) {
     ui.alert("Could not update: " + result.error);
