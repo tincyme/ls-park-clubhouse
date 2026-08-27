@@ -198,9 +198,15 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
           <label>Date<input id="availDate" type="date"></label>
           <script>
             (function () {
-              var d = new Date();
-              d.setDate(d.getDate() + 365);
-              document.getElementById("availDate").max = d.toISOString().split("T")[0];
+              var today = new Date();
+              var todayStr = today.getFullYear() + "-" +
+                String(today.getMonth() + 1).padStart(2, "0") + "-" +
+                String(today.getDate()).padStart(2, "0");
+              var max = new Date();
+              max.setDate(max.getDate() + 365);
+              var el = document.getElementById("availDate");
+              el.min = todayStr;
+              el.max = max.toISOString().split("T")[0];
             })();
           </script>
           <button class="btn btn-blue full" id="checkAvailBtn" type="button">Check Availability</button>
@@ -316,6 +322,7 @@ let lastBookingModel = null;    // "capacity" (Pool) or "resource" (Badminton)
 function badgeStyle_(status) {
   if (status === "Available") return "background:#D9EAD3;color:#2e6b2e;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
   if (status === "Blocked") return "background:#e0e0e0;color:#555555;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
+  if (status === "Pending") return "background:#FCE8B2;color:#8a6400;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // awaiting owner approval
   return "background:#F4CCCC;color:#9c2b2b;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // Booked / Full
 }
 
@@ -530,30 +537,58 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
   });
 }
 
-document.getElementById("checkAvailBtn").addEventListener("click", async function () {
+let availCheckInFlight = false;
+
+async function refreshAvailability_() {
   const facility = FACILITY;
   const date = document.getElementById("availDate").value;
   const availNote = document.getElementById("availNote");
   const availResults = document.getElementById("availResults");
   const availSlots = document.getElementById("availSlots");
   const bookingWrap = document.getElementById("bookingRequestWrap");
+  const checkBtn = document.getElementById("checkAvailBtn");
 
+  // Whatever was showing belonged to the PREVIOUS date/state — clear it
+  // immediately so a stale "Request to Book" button can never be clicked
+  // for a date the visible list no longer matches.
   bookingWrap.style.display = "none";
   availResults.style.display = "none";
   availSlots.innerHTML = "";
+  selectedBookingSlot = null;
 
   if (!date) {
-    availNote.textContent = "Please select a date.";
+    availNote.textContent = "";
+    return;
+  }
+
+  var todayCheck = new Date();
+  var todayCheckStr = todayCheck.getFullYear() + "-" +
+    String(todayCheck.getMonth() + 1).padStart(2, "0") + "-" +
+    String(todayCheck.getDate()).padStart(2, "0");
+  if (date < todayCheckStr) {
+    availNote.textContent = "Please choose today or a future date.";
     return;
   }
 
   availNote.textContent = "Checking...";
-  this.disabled = true;
+  availCheckInFlight = true;
+  checkBtn.disabled = true;
+
+  // The date may change again while this fetch is in flight (e.g. the
+  // customer edits the date field twice quickly) — remember which date
+  // this particular request was for, and if it's no longer the current
+  // date field value when the response comes back, discard it instead
+  // of rendering stale results.
+  const requestedDate = date;
 
   try {
-    const url = `${ENQUIRY_API}?action=availability&facility=${encodeURIComponent(facility)}&date=${encodeURIComponent(date)}`;
+    const url = `${ENQUIRY_API}?action=availability&facility=${encodeURIComponent(facility)}&date=${encodeURIComponent(requestedDate)}`;
     const response = await fetch(url);
     const result = await response.json();
+
+    if (document.getElementById("availDate").value !== requestedDate) {
+      return; // date moved on again before this response arrived — ignore it
+    }
 
     if (!result.success) {
       throw new Error(result.error || "Could not check availability.");
@@ -563,18 +598,29 @@ document.getElementById("checkAvailBtn").addEventListener("click", async functio
     availResults.style.display = "block";
 
     if (result.type === "fixed") {
-      renderFixedSlots_(result.slots, facility, date);
+      renderFixedSlots_(result.slots, facility, requestedDate);
     } else if (result.type === "hourly") {
-      renderHourlySlots_(result.slots, result.bookingModel, facility, date);
+      renderHourlySlots_(result.slots, result.bookingModel, facility, requestedDate);
     }
 
   } catch (error) {
     console.error("Availability check error:", error);
-    availNote.textContent = "Sorry, we couldn't check availability right now. Please call us directly.";
+    if (document.getElementById("availDate").value === requestedDate) {
+      availNote.textContent = "Sorry, we couldn't check availability right now. Please call us directly.";
+    }
   } finally {
-    this.disabled = false;
+    availCheckInFlight = false;
+    checkBtn.disabled = false;
   }
-});
+}
+
+document.getElementById("checkAvailBtn").addEventListener("click", refreshAvailability_);
+
+// Auto-refresh if the customer changes the date without clicking Check
+// Availability again — otherwise the visible slot list (and whatever
+// "Request to Book" button they click) could still belong to the
+// previous date.
+document.getElementById("availDate").addEventListener("change", refreshAvailability_);
 
 document.getElementById("bkDuration").addEventListener("change", reValidateDuration_);
 document.getElementById("bkMode").addEventListener("change", reValidateDuration_);
@@ -673,6 +719,13 @@ Please confirm this booking. Thank you.`;
       document.getElementById("bookingRequestWrap").style.display = "none";
       document.getElementById("bookingConfirmationPanel").style.display = "block";
       this.reset();
+
+      // Drop the now-stale slot list (it still shows "Request to Book" for
+      // the slot we just requested) and pull a fresh one, so that slot
+      // reflects its real status instead of staying clickable.
+      document.getElementById("availResults").style.display = "none";
+      document.getElementById("availSlots").innerHTML = "";
+      refreshAvailability_();
 
     } else {
       if (bookingWindow && !bookingWindow.closed) bookingWindow.close();

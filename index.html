@@ -342,6 +342,15 @@ const ENQUIRY_API =
 const pageLoadTime = Date.now();
 const MIN_FILL_SECONDS = 3;
 
+(function () {
+  var today = new Date();
+  var todayStr = today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+  var dateEl = document.getElementById("date");
+  if (dateEl) dateEl.min = todayStr;
+})();
+
 function getEnquirySource() {
   const params = new URLSearchParams(window.location.search);
   const utmSource = params.get("utm_source");
