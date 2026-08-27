@@ -903,7 +903,7 @@ function resolveSlotTimes_(slotName) {
 // Pool and Badminton are paid in full early, so they're deliberately
 // NOT in this list -- confirmBookingWithPaymentCore_ refuses a
 // "Partial" payment status for any facility not listed here.
-const PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS = ["F002", "F003"]; // AC Hall, Non-AC Hall
+const PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS = ["F002", "F003", "F004"]; // AC Hall, Non-AC Hall, Lawn
 
 // The ONLY way a "New" booking request becomes a Confirmed Bookings row.
 // There is no separate plain "Approve" anymore, and no Payment Status
@@ -934,7 +934,7 @@ function confirmBookingWithPaymentCore_(requestId, paymentStatus) {
   }
 
   if (status === "Partial" && PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS.indexOf(facilityId) === -1) {
-    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL to confirm -- Partial is only for Hall bookings (50% advance). Collect the remaining payment first, or mark it Paid." };
+    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL to confirm -- Partial is only for Hall and Lawn bookings (50% advance). Collect the remaining payment first, or mark it Paid." };
   }
 
   const slotTimes = resolveSlotTimes_(slotName);
@@ -1107,7 +1107,7 @@ function updateBookingPaymentStatusCore_(bookingId, paymentStatus) {
   const facilityId = bookingRow[3];
 
   if (status === "Partial" && PARTIAL_PAYMENT_ALLOWED_FACILITY_IDS.indexOf(facilityId) === -1) {
-    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL -- Partial is only for Hall bookings (50% advance)." };
+    return { success: false, error: facilityNameById_(facilityId) + " must be paid in FULL -- Partial is only for Hall and Lawn bookings (50% advance)." };
   }
 
   sheet.getRange(rowIndex + 2, 12).setValue(status); // Payment Status column L
