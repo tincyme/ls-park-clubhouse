@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Non-AC Hall at PeedsPark Club House, Ammancherry, Kerala — check availability and request a booking.">
-  <title>Non-AC Hall | PeedsPark Club House, Ammancherry</title>
+  <meta name="description" content="L's Club House at PeedsPark, Ammancherry, Kerala — choose AC Hall, Non-AC Hall or Party Lawn to check availability and request a booking.">
+  <title>L's Club House | PeedsPark Club House, Ammancherry</title>
+  <style>
   <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
@@ -141,6 +142,7 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
 }
 </style>
 </head>
+
 <body>
   <header class="site-header">
     <div class="container nav">
@@ -157,130 +159,39 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
         <a href="index.html#gallery">Gallery</a>
         <a href="index.html#contact">Contact</a>
       </nav>
-      <a class="nav-cta" href="#availability">Enquire Now</a>
+      <a class="nav-cta" href="index.html#enquire">Enquire Now</a>
     </div>
   </header>
-
   <main>
-    <section class="facility-banner" style='background-image:linear-gradient(90deg,rgba(6,25,27,.45),rgba(6,25,27,.15)),url("images/Non-ACHall.jpeg")'>
+    
+    <section class="facility-banner" style='background-image:linear-gradient(90deg,rgba(6,25,27,.45),rgba(6,25,27,.15)),url("images/lawn1.jpeg")'>
       <div class="container">
-        <p class="breadcrumb"><a href="index.html">Home</a> <span>/</span> <a href="index.html#facilities">Facilities</a> <span>/</span> Non-AC Hall</p>
-        <p class="eyebrow">🏛️ FACILITY</p>
-        <h1>Non-AC Hall</h1>
+        <p class="breadcrumb"><a href="index.html">Home</a> <span>/</span> L's Club House</p>
+        <p class="eyebrow">🏛️ L'S CLUB HOUSE</p>
+        <h1>L's Club House</h1>
       </div>
     </section>
 
     <section class="intro">
       <div class="container intro-grid">
         <div>
-          <p class="eyebrow dark">ABOUT THIS FACILITY</p>
-          <h2>Non-AC Hall</h2>
+          <p class="eyebrow dark">ABOUT L'S CLUB HOUSE</p>
+          <h2>Three venues, one club house.</h2>
         </div>
-        <p>Non-air-conditioned hall suitable for functions, meetings and celebrations.</p>
+        <p>Whether you need an air-conditioned hall, a budget-friendly indoor hall, or an open-air lawn, L's Club House covers it. Pick a venue below to see photos, check availability for your date, and request a booking.</p>
       </div>
     </section>
 
-    <section id="availability" class="enquiry-section">
-      <div class="container enquiry-grid">
-        <div>
-          <p class="eyebrow">CHECK AVAILABILITY &amp; ENQUIRE</p>
-          <h2>Check a date, then request to book.</h2>
-          <p>Morning and Evening slots available.</p>
-          <div class="contact-mini">
-            <a href="tel:+919846718106">📞 98467 18106</a>
-            <a href="tel:+919946440088">📞 99464 40088</a>
-          </div>
+    <section id="venues" class="section">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow dark">CHOOSE A VENUE</p>
+          <h2>Our Club House Venues</h2>
         </div>
-
-        <div class="form-card">
-          <label>Date<input id="availDate" type="date"></label>
-          <script>
-            (function () {
-              var today = new Date();
-              var todayStr = today.getFullYear() + "-" +
-                String(today.getMonth() + 1).padStart(2, "0") + "-" +
-                String(today.getDate()).padStart(2, "0");
-              var max = new Date();
-              max.setDate(max.getDate() + 365);
-              var el = document.getElementById("availDate");
-              el.min = todayStr;
-              el.max = max.toISOString().split("T")[0];
-            })();
-          </script>
-          <button class="btn btn-blue full" id="checkAvailBtn" type="button">Check Availability</button>
-          <p class="form-note" id="availNote"></p>
-
-          <div id="availResults" style="display:none;margin-top:18px;">
-            <div id="availSlots"></div>
-          </div>
-
-          <div id="bookingRequestWrap" style="display:none;margin-top:20px;border-top:1px solid #eee;padding-top:20px;">
-            <h3 style="margin:0 0 10px;font-size:18px;">Request to Book — <span id="bookingSlotLabel"></span></h3>
-            <form id="bookingRequestForm">
-              <input type="text" id="bkWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;">
-              <label>Name<input id="bkName" required type="text" placeholder="Your name"></label>
-              <div class="form-row">
-                <label>Phone<input id="bkPhone" required type="tel" placeholder="Your phone number"></label>
-                <label>Email (optional)<input id="bkEmail" type="email" placeholder="you@example.com"></label>
-              </div>
-              <label>Number of guests<input id="bkGuests" type="number" min="1" placeholder="Approx. guests"></label>
-              <label id="bkDurationWrap" style="display:none;">Duration
-                <select id="bkDuration">
-                  <option value="1">1 hour</option>
-                  <option value="2">2 hours</option>
-                  <option value="3">3 hours</option>
-                  <option value="4">4 hours</option>
-                </select>
-              </label>
-              <p class="form-note" id="bkDurationNote" style="text-align:left;"></p>
-              <label id="bkModeWrap" style="display:none;">Booking mode
-                <select id="bkMode">
-                  <option value="Shared">Shared (join others, pay per person)</option>
-                  <option value="Exclusive">Exclusive (book the whole pool for your group)</option>
-                </select>
-              </label>
-              <label>Event type (optional)<input id="bkEventType" type="text" placeholder="e.g. Birthday, Wedding reception"></label>
-              <label>Special request (optional)<textarea id="bkSpecial" rows="2" placeholder="Anything else we should know"></textarea></label>
-
-              <details style="margin:10px 0 16px;font-size:12px;color:var(--muted);">
-                <summary style="cursor:pointer;font-weight:700;color:#4f83b6;">Advance payment &amp; cancellation policy</summary>
-                <div style="margin-top:8px;line-height:1.6;">
-                  <strong>Advance payment:</strong> Hall bookings require 50% advance; Swimming Pool and Badminton bookings require 100% advance. Payable on booking confirmation.<br><br>
-                  <strong>Cancellation (Hall only):</strong> Full refund if cancelled 30+ days before the event, 50% refund if cancelled 15–29 days before, no refund within 15 days. All cancellations are approved by management.<br><br>
-                  <em>Payment is currently handled directly with our team (WhatsApp/call) — not collected on this website.</em>
-                </div>
-              </details>
-
-              <button class="btn btn-yellow full" id="bookingSubmitBtn" type="submit">Send Booking Request</button>
-              <p class="form-note">We'll save your request and open WhatsApp to confirm.</p>
-            </form>
-          </div>
-
-          <div id="bookingConfirmationPanel" style="display:none;text-align:center;">
-            <div style="font-size:40px;margin-bottom:10px;">✅</div>
-            <h3 style="margin:0 0 8px;font-size:22px;">Booking request sent!</h3>
-            <p style="color:var(--muted);margin:0 0 6px;">Reference ID</p>
-            <p id="bkRequestId" style="font-size:20px;font-weight:700;color:#4f83b6;margin:0 0 18px;"></p>
-            <p style="color:var(--muted);margin:0 0 20px;">We've saved your request and opened WhatsApp with the details. Our team will confirm and follow up shortly.</p>
-            <a class="btn btn-outline-blue" href="https://wa.me/919846718106" target="_blank" rel="noopener" style="margin-bottom:10px;display:inline-flex;">Reopen WhatsApp</a>
-            <br>
-            <a href="#" id="checkAnotherLink" style="display:inline-block;margin-top:10px;color:#4f83b6;font-weight:600;">Check another date</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="contact" class="contact-section">
-      <div class="container contact-grid">
-        <div>
-          <p class="eyebrow dark">FIND US</p>
-          <h2>PeedsPark Club House</h2>
-          <p>Ammancherry, Kerala 686561</p>
-        </div>
-        <div class="contact-actions">
-          <a class="btn btn-blue" href="tel:+919846718106">Call 98467 18106</a>
-          <a class="btn btn-outline-blue" href="https://wa.me/919846718106" target="_blank" rel="noopener">WhatsApp Us</a>
-          <a class="map-link" href="https://www.google.com/maps/place/Ls+Park+Convention+Centre/@9.6446216,76.5369392,19z/data=!3m1!4b1!4m6!3m5!1s0x3b07d4afe128b479:0xde9727e331157706!8m2!3d9.6446216!4d76.5375829!16s%2Fg%2F11g7cwz_s_?entry=ttu&g_ep=EgoyMDI2MDgxOS4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener">📍 Open in Google Maps</a>
+        <div class="cards">
+          <a class="card" href="ac-hall.html"><div class="icon">❄️</div><h3>AC Hall</h3><p>Air-conditioned indoor hall for 80–100 guests — weddings, receptions and larger functions.</p><span class="card-link-hint">Check availability &amp; book →</span></a>
+          <a class="card" href="non-ac-hall.html"><div class="icon">🏛️</div><h3>Non-AC Hall</h3><p>Spacious indoor hall for 200–250 guests, a budget-friendly option for large celebrations.</p><span class="card-link-hint">Check availability &amp; book →</span></a>
+          <a class="card" href="lawn.html"><div class="icon">🎉</div><h3>Party Lawn</h3><p>An open outdoor setting for parties, birthdays and special occasions.</p><span class="card-link-hint">Check availability &amp; book →</span></a>
         </div>
       </div>
     </section>
@@ -289,7 +200,7 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
   <div class="mobile-bar">
     <a href="tel:+919846718106">📞 Call</a>
     <a href="https://wa.me/919846718106" target="_blank" rel="noopener">💬 WhatsApp</a>
-    <a href="#availability">📋 Enquire</a>
+    <a href="index.html#enquire">📋 Enquire</a>
   </div>
 
   <footer>
@@ -299,457 +210,5 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
       <div><a href="privacy.html" class="footer-link">Privacy Policy</a></div>
     </div>
   </footer>
-
-  <script>
-
-const ENQUIRY_API =
-  "https://script.google.com/macros/s/AKfycbwSGAt5wWrnMFWZ_vO8InNrLH1rd3vvmSpjS_k9evtJQfhEkeyPp5LrnREX0_866JnlCw/exec";
-const FACILITY = "Non-AC Hall";
-
-// Used for a lightweight bot check — a real visitor takes at least a
-// couple of seconds to read the form and type something in.
-const pageLoadTime = Date.now();
-const MIN_FILL_SECONDS = 3;
-
-// ── Check Availability + Booking Request (single facility) ────────────────
-
-let selectedBookingSlot = null; // { facility, date, slot, startIndex }
-let lastHourlySlots = null;     // the raw slots array from the last hourly check
-let lastBookingModel = null;    // "capacity" (Pool) or "resource" (Badminton)
-
-function badgeStyle_(status) {
-  if (status === "Available") return "background:#D9EAD3;color:#2e6b2e;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
-  if (status === "Blocked") return "background:#e0e0e0;color:#555555;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
-  if (status === "Pending") return "background:#FCE8B2;color:#8a6400;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // awaiting owner approval
-  return "background:#F4CCCC;color:#9c2b2b;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // Booked / Full
-}
-
-function validateConsecutiveHours_(startIndex, duration, isPool, mode, resourceId, guestCount) {
-  if (!lastHourlySlots) return { ok: true, message: "" };
-
-  for (let i = startIndex; i < startIndex + duration; i++) {
-    if (i >= lastHourlySlots.length) {
-      return { ok: false, message: "That's past closing time for this many hours." };
-    }
-    const s = lastHourlySlots[i];
-
-    if (isPool) {
-      if (s.status === "Blocked") {
-        return { ok: false, message: `${s.start}–${s.end} is blocked by management.` };
-      }
-      if (mode === "Exclusive" && s.remaining !== s.capacity) {
-        return { ok: false, message: `${s.start}–${s.end} already has a shared booking — can't book Exclusive.` };
-      }
-      if (s.status === "Full") {
-        return { ok: false, message: `${s.start}–${s.end} is already full.` };
-      }
-      if (mode !== "Exclusive" && guestCount && guestCount > s.remaining) {
-        return { ok: false, message: `Only ${s.remaining} spot(s) left at ${s.start}–${s.end} — please reduce your guest count.` };
-      }
-    } else if (resourceId) {
-      const court = (s.courts || []).find(function (c) { return c.id === resourceId; });
-      if (!court || court.status !== "Available") {
-        return { ok: false, message: `${s.start}–${s.end}: ${court ? court.name : "that court"} is ${court ? court.status.toLowerCase() : "unavailable"}.` };
-      }
-    } else {
-      if (s.status !== "Available") {
-        return { ok: false, message: `${s.start}–${s.end} is already booked.` };
-      }
-    }
-  }
-  return { ok: true, message: "✓ Available for the full duration." };
-}
-
-function reValidateDuration_() {
-  const durationWrap = document.getElementById("bkDurationWrap");
-  if (durationWrap.style.display === "none" || selectedBookingSlot.startIndex == null) return;
-
-  const duration = parseInt(document.getElementById("bkDuration").value, 10);
-  const isPool = lastBookingModel === "capacity";
-  const mode = isPool ? document.getElementById("bkMode").value : "";
-  const resourceId = selectedBookingSlot.resourceId || "";
-  const guestCount = parseInt(document.getElementById("bkGuests").value, 10) || 0;
-
-  const result = validateConsecutiveHours_(selectedBookingSlot.startIndex, duration, isPool, mode, resourceId, guestCount);
-  const note = document.getElementById("bkDurationNote");
-  note.textContent = result.message;
-  note.style.color = result.ok ? "#2e6b2e" : "#9c2b2b";
-
-  const submitBtn = document.getElementById("bookingSubmitBtn");
-  submitBtn.disabled = !result.ok;
-
-  if (result.ok) {
-    const startSlot = lastHourlySlots[selectedBookingSlot.startIndex];
-    const endSlot = lastHourlySlots[selectedBookingSlot.startIndex + duration - 1];
-    selectedBookingSlot.slot = `${startSlot.start}-${endSlot.end}`;
-    const courtLabel = selectedBookingSlot.resourceName ? `, ${selectedBookingSlot.resourceName}` : "";
-    document.getElementById("bookingSlotLabel").textContent =
-      `${selectedBookingSlot.facility}, ${selectedBookingSlot.date}, ${selectedBookingSlot.slot}${courtLabel}`;
-  }
-}
-
-function openBookingForm_(facility, date, slotLabel, showModeSelector, isHourly, startIndex, resourceId, resourceName) {
-  selectedBookingSlot = {
-    facility: facility,
-    date: date,
-    slot: slotLabel,
-    startIndex: isHourly ? startIndex : null,
-    resourceId: resourceId || "",
-    resourceName: resourceName || ""
-  };
-  const courtLabel = resourceName ? `, ${resourceName}` : "";
-  document.getElementById("bookingSlotLabel").textContent = `${facility}, ${date}, ${slotLabel}${courtLabel}`;
-  document.getElementById("bkModeWrap").style.display = showModeSelector ? "block" : "none";
-
-  const durationWrap = document.getElementById("bkDurationWrap");
-  durationWrap.style.display = isHourly ? "block" : "none";
-  document.getElementById("bookingSubmitBtn").disabled = false;
-  document.getElementById("bkDurationNote").textContent = "";
-
-  if (isHourly) {
-    document.getElementById("bkDuration").value = "1";
-    reValidateDuration_();
-  }
-
-  const bookingWrap = document.getElementById("bookingRequestWrap");
-  bookingWrap.style.display = "block";
-  bookingWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function renderFixedSlots_(slots, facility, date) {
-  const availSlots = document.getElementById("availSlots");
-
-  Object.keys(slots).forEach(function (slotName) {
-    const status = slots[slotName];
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eee;";
-
-    const label = document.createElement("span");
-    label.textContent = slotName;
-    label.style.fontWeight = "700";
-    row.appendChild(label);
-
-    if (status === "Available") {
-      const bookBtn = document.createElement("button");
-      bookBtn.textContent = "Request to Book";
-      bookBtn.type = "button";
-      bookBtn.style.cssText = "background:#4f83b6;color:#fff;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;";
-      bookBtn.addEventListener("click", function () { openBookingForm_(facility, date, slotName, false, false, null); });
-      row.appendChild(bookBtn);
-    } else {
-      const badge = document.createElement("span");
-      badge.textContent = status;
-      badge.style.cssText = badgeStyle_(status);
-      row.appendChild(badge);
-    }
-
-    availSlots.appendChild(row);
-  });
-}
-
-function renderHourlySlots_(slots, bookingModel, facility, date) {
-  const availSlots = document.getElementById("availSlots");
-  const isPool = bookingModel === "capacity";
-  const isBadminton = facility === "Badminton";
-
-  lastHourlySlots = slots;
-  lastBookingModel = bookingModel;
-
-  slots.forEach(function (slot, index) {
-    const slotLabel = `${slot.start}-${slot.end}`;
-
-    if (isBadminton) {
-      const wrap = document.createElement("div");
-      wrap.style.cssText = "padding:10px 0;border-bottom:1px solid #eee;";
-
-      const timeLabel = document.createElement("div");
-      timeLabel.textContent = `${slot.start} – ${slot.end}`;
-      timeLabel.style.cssText = "font-weight:700;margin-bottom:6px;";
-      wrap.appendChild(timeLabel);
-
-      (slot.courts || []).forEach(function (court) {
-        const courtRow = document.createElement("div");
-        courtRow.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:4px 0 4px 12px;";
-
-        const courtLabel = document.createElement("span");
-        courtLabel.textContent = court.name;
-        courtLabel.style.cssText = "font-size:13px;color:var(--muted);";
-        courtRow.appendChild(courtLabel);
-
-        if (court.status === "Available") {
-          const bookBtn = document.createElement("button");
-          bookBtn.textContent = "Request to Book";
-          bookBtn.type = "button";
-          bookBtn.style.cssText = "background:#4f83b6;color:#fff;border:none;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;";
-          bookBtn.addEventListener("click", function () {
-            openBookingForm_(facility, date, slotLabel, false, true, index, court.id, court.name);
-          });
-          courtRow.appendChild(bookBtn);
-        } else {
-          const badge = document.createElement("span");
-          badge.textContent = court.status;
-          badge.style.cssText = badgeStyle_(court.status);
-          courtRow.appendChild(badge);
-        }
-
-        wrap.appendChild(courtRow);
-      });
-
-      availSlots.appendChild(wrap);
-      return;
-    }
-
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;";
-
-    const label = document.createElement("span");
-    label.textContent = `${slot.start} – ${slot.end}`;
-    label.style.fontWeight = "700";
-    row.appendChild(label);
-
-    if (slot.status === "Available") {
-      const right = document.createElement("div");
-      right.style.cssText = "display:flex;align-items:center;gap:10px;";
-
-      const remaining = document.createElement("span");
-      remaining.textContent = `${slot.remaining} of ${slot.capacity} spots left`;
-      remaining.style.cssText = "font-size:12px;color:var(--muted);";
-      right.appendChild(remaining);
-
-      const bookBtn = document.createElement("button");
-      bookBtn.textContent = "Request to Book";
-      bookBtn.type = "button";
-      bookBtn.style.cssText = "background:#4f83b6;color:#fff;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;";
-      bookBtn.addEventListener("click", function () { openBookingForm_(facility, date, slotLabel, isPool, true, index, "", ""); });
-      right.appendChild(bookBtn);
-
-      row.appendChild(right);
-    } else {
-      const badge = document.createElement("span");
-      badge.textContent = slot.status;
-      badge.style.cssText = badgeStyle_(slot.status);
-      row.appendChild(badge);
-    }
-
-    availSlots.appendChild(row);
-  });
-}
-
-let availCheckInFlight = false;
-
-async function refreshAvailability_() {
-  const facility = FACILITY;
-  const date = document.getElementById("availDate").value;
-  const availNote = document.getElementById("availNote");
-  const availResults = document.getElementById("availResults");
-  const availSlots = document.getElementById("availSlots");
-  const bookingWrap = document.getElementById("bookingRequestWrap");
-  const checkBtn = document.getElementById("checkAvailBtn");
-
-  // Whatever was showing belonged to the PREVIOUS date/state — clear it
-  // immediately so a stale "Request to Book" button can never be clicked
-  // for a date the visible list no longer matches.
-  bookingWrap.style.display = "none";
-  availResults.style.display = "none";
-  availSlots.innerHTML = "";
-  selectedBookingSlot = null;
-
-  if (!date) {
-    availNote.textContent = "";
-    return;
-  }
-
-  var todayCheck = new Date();
-  var todayCheckStr = todayCheck.getFullYear() + "-" +
-    String(todayCheck.getMonth() + 1).padStart(2, "0") + "-" +
-    String(todayCheck.getDate()).padStart(2, "0");
-  if (date < todayCheckStr) {
-    availNote.textContent = "Please choose today or a future date.";
-    return;
-  }
-
-  availNote.textContent = "Checking...";
-  availCheckInFlight = true;
-  checkBtn.disabled = true;
-
-  // The date may change again while this fetch is in flight (e.g. the
-  // customer edits the date field twice quickly) — remember which date
-  // this particular request was for, and if it's no longer the current
-  // date field value when the response comes back, discard it instead
-  // of rendering stale results.
-  const requestedDate = date;
-
-  try {
-    const url = `${ENQUIRY_API}?action=availability&facility=${encodeURIComponent(facility)}&date=${encodeURIComponent(requestedDate)}`;
-    const response = await fetch(url);
-    const result = await response.json();
-
-    if (document.getElementById("availDate").value !== requestedDate) {
-      return; // date moved on again before this response arrived — ignore it
-    }
-
-    if (!result.success) {
-      throw new Error(result.error || "Could not check availability.");
-    }
-
-    availNote.textContent = "";
-    availResults.style.display = "block";
-
-    if (result.type === "fixed") {
-      renderFixedSlots_(result.slots, facility, requestedDate);
-    } else if (result.type === "hourly") {
-      renderHourlySlots_(result.slots, result.bookingModel, facility, requestedDate);
-    }
-
-  } catch (error) {
-    console.error("Availability check error:", error);
-    if (document.getElementById("availDate").value === requestedDate) {
-      availNote.textContent = "Sorry, we couldn't check availability right now. Please call us directly.";
-    }
-  } finally {
-    availCheckInFlight = false;
-    checkBtn.disabled = false;
-  }
-}
-
-document.getElementById("checkAvailBtn").addEventListener("click", refreshAvailability_);
-
-// Auto-refresh if the customer changes the date without clicking Check
-// Availability again — otherwise the visible slot list (and whatever
-// "Request to Book" button they click) could still belong to the
-// previous date.
-document.getElementById("availDate").addEventListener("change", refreshAvailability_);
-
-document.getElementById("bkDuration").addEventListener("change", reValidateDuration_);
-document.getElementById("bkMode").addEventListener("change", reValidateDuration_);
-document.getElementById("bkGuests").addEventListener("input", reValidateDuration_);
-
-document.getElementById("bookingRequestForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
-
-  if ((Date.now() - pageLoadTime) / 1000 < MIN_FILL_SECONDS) {
-    alert("Please take a moment to review your details before submitting.");
-    return;
-  }
-
-  if (!selectedBookingSlot) {
-    alert("Please check availability and select a slot first.");
-    return;
-  }
-
-  if (selectedBookingSlot.startIndex != null) {
-    const duration = parseInt(document.getElementById("bkDuration").value, 10);
-    const isPool = lastBookingModel === "capacity";
-    const mode = isPool ? document.getElementById("bkMode").value : "";
-    const guestCount = parseInt(document.getElementById("bkGuests").value, 10) || 0;
-    const check = validateConsecutiveHours_(selectedBookingSlot.startIndex, duration, isPool, mode, selectedBookingSlot.resourceId || "", guestCount);
-    if (!check.ok) {
-      alert("That duration/mode isn't available anymore: " + check.message + "\n\nPlease adjust and try again.");
-      return;
-    }
-  }
-
-  const submitBtn = document.getElementById("bookingSubmitBtn");
-  const name = document.getElementById("bkName").value.trim();
-  const phone = document.getElementById("bkPhone").value.trim();
-  const email = document.getElementById("bkEmail").value.trim();
-  const guests = document.getElementById("bkGuests").value;
-  const eventType = document.getElementById("bkEventType").value.trim();
-  const specialRequest = document.getElementById("bkSpecial").value.trim();
-  const bkModeWrap = document.getElementById("bkModeWrap");
-  const bookingMode = bkModeWrap.style.display !== "none" ? document.getElementById("bkMode").value : "";
-
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Sending...";
-
-  const bookingWindow = window.open("", "_blank");
-
-  const payload = {
-    type: "booking_request",
-    name: name,
-    phone: phone,
-    email: email,
-    facility: selectedBookingSlot.facility,
-    date: selectedBookingSlot.date,
-    slot: selectedBookingSlot.slot,
-    resourceId: selectedBookingSlot.resourceId || "",
-    bookingMode: bookingMode,
-    guests: guests,
-    eventType: eventType,
-    specialRequest: specialRequest,
-    honeypot: document.getElementById("bkWebsite").value
-  };
-
-  try {
-    const response = await fetch(ENQUIRY_API, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-    const result = await response.json();
-
-    if (result.success) {
-      const dateText = new Date(selectedBookingSlot.date + "T00:00:00").toLocaleDateString("en-IN");
-
-      const whatsappText =
-`Hello PeedsPark Club House,
-
-I would like to request a booking.
-Request ID: ${result.requestId}
-
-Name: ${name}
-Phone: ${phone}${email ? `\nEmail: ${email}` : ""}
-Facility: ${selectedBookingSlot.facility}
-Date: ${dateText}
-Slot: ${selectedBookingSlot.slot}${selectedBookingSlot.resourceName ? `\nCourt: ${selectedBookingSlot.resourceName}` : ""}${bookingMode ? `\nBooking mode: ${bookingMode}` : ""}
-Guests: ${guests || "Not specified"}${eventType ? `\nEvent type: ${eventType}` : ""}${specialRequest ? `\nSpecial request: ${specialRequest}` : ""}
-
-Please confirm this booking. Thank you.`;
-
-      const whatsappUrl = `https://wa.me/919846718106?text=${encodeURIComponent(whatsappText)}`;
-      if (bookingWindow && !bookingWindow.closed) {
-        bookingWindow.location.href = whatsappUrl;
-      } else {
-        window.open(whatsappUrl, "_blank");
-      }
-
-      document.getElementById("bkRequestId").textContent = result.requestId;
-      document.getElementById("bookingRequestWrap").style.display = "none";
-      document.getElementById("bookingConfirmationPanel").style.display = "block";
-      this.reset();
-
-      // Drop the now-stale slot list (it still shows "Request to Book" for
-      // the slot we just requested) and pull a fresh one, so that slot
-      // reflects its real status instead of staying clickable.
-      document.getElementById("availResults").style.display = "none";
-      document.getElementById("availSlots").innerHTML = "";
-      refreshAvailability_();
-
-    } else {
-      if (bookingWindow && !bookingWindow.closed) bookingWindow.close();
-      throw new Error(result.error || "Unable to submit booking request.");
-    }
-
-  } catch (error) {
-    if (bookingWindow && !bookingWindow.closed) bookingWindow.close();
-    console.error("Booking request error:", error);
-    alert(error.message && error.message !== "Failed to fetch"
-      ? error.message
-      : "Sorry, we couldn't submit your booking request right now. Please contact us on WhatsApp or call us directly.");
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Send Booking Request";
-  }
-});
-
-document.getElementById("checkAnotherLink").addEventListener("click", function (e) {
-  e.preventDefault();
-  document.getElementById("bookingConfirmationPanel").style.display = "none";
-  document.getElementById("availResults").style.display = "none";
-  document.getElementById("availDate").value = "";
-  selectedBookingSlot = null;
-});
-
-</script>
 </body>
 </html>
