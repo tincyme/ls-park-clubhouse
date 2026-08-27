@@ -27,7 +27,7 @@ nav{display:flex;gap:14px;font-size:13px;font-weight:600;flex-wrap:wrap;row-gap:
 nav a:hover{color:#4f83b6}
 nav a.active{color:#4f83b6}
 .nav-cta,.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:7px;padding:12px 20px;font-weight:700;transition:.2s}
-.nav-cta{background:#4f83b6;color:#ffffff}
+.nav-cta{background:#e7c96b;color:#171717}
 .hero{min-height:650px;display:flex;align-items:center;position:relative;background:linear-gradient(90deg,rgba(49,95,136,.93),rgba(79,131,182,.72)),url("assets/poster.jpg") center/cover}
 .hero-overlay{position:absolute;inset:0}
 .hero-content{position:relative;color:#ffffff;padding:80px 0}
@@ -54,7 +54,8 @@ h1 span{color:#b18b35}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .card{display:block;background:#ffffff;padding:28px;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 25px rgba(49,95,136,.08);transition:transform .2s ease,box-shadow .2s ease}
 .card[href]:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(49,95,136,.16)}
-.card-link-hint{display:block;margin-top:10px;font-size:13px;font-weight:700;color:#4f83b6}
+.card-link-hint{display:inline-flex;align-items:center;margin-top:16px;font-size:13px;font-weight:700;color:#ffffff;background:#4f83b6;padding:10px 16px;border-radius:7px;transition:.2s}
+.card[href]:hover .card-link-hint{background:#315f88}
 .icon{font-size:32px;margin-bottom:15px}
 .card h3{margin:0 0 8px;font-size:20px}
 .card p{margin:0;color:var(--muted)}
@@ -75,7 +76,7 @@ h1 span{color:#b18b35}
 .enquiry-section{background:#4f83b6;color:#ffffff;padding:85px 0}
 .enquiry-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:60px;align-items:start}
 .enquiry-section h2{color:#315f88}
-.enquiry-section>div>div>p{color:#526f83}
+.enquiry-section>div>div>p{color:#1a1a1a}
 .contact-mini{display:flex;flex-direction:column;gap:8px;margin-top:28px;font-weight:700}
 .form-card{background:#ffffff;color:var(--ink);padding:28px;border-radius:14px;box-shadow:0 20px 50px rgba(49,95,136,.15)}
 .form-card label{display:block;font-size:13px;font-weight:700;margin-bottom:14px}
@@ -91,6 +92,8 @@ input,select,textarea{width:100%;font:inherit;margin-top:6px;padding:12px;border
 footer{background:#315f88;color:#ffffff;padding:25px 0}
 .footer-inner{display:flex;justify-content:space-between;gap:20px;font-size:13px}
 .footer-inner span{color:#6e8798}
+.footer-link{color:#ffffff;text-decoration:underline;opacity:.85}
+.footer-link:hover{opacity:1}
 .mobile-bar{display:none}
 .facility-banner{position:relative;min-height:300px;display:flex;align-items:flex-end;background-size:cover;background-position:center}
 .facility-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(6,25,27,.78),rgba(6,25,27,.18))}
@@ -146,6 +149,7 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
         <div><strong>PeedsPark</strong><span>Club House</span></div>
       </a>
       <nav>
+        <a href="index.html">Home</a>
         <a href="pool.html">Pool</a>
         <a href="ac-hall.html">AC Hall</a>
         <a href="non-ac-hall.html" class="active">Non-AC Hall</a>
@@ -288,6 +292,7 @@ footer{background:#315f88;color:#ffffff;padding:25px 0}
     <div class="container footer-inner">
       <div><strong>PeedsPark Club House</strong><br><span>Ammancherry • Kerala 686561</span></div>
       <div>Sports • Celebrations • Memories</div>
+      <div><a href="privacy.html" class="footer-link">Privacy Policy</a></div>
     </div>
   </footer>
 
