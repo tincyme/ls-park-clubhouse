@@ -1460,3 +1460,172 @@ function closeReservedBadmintonSlot() {
   const result = callAdminAction_("closeReservedBadmintonSlot", { unblockId: unblockId });
   ui.alert(result.success ? result.message : ("Could not close slot: " + result.error));
 }
+
+function setupStatusManagement() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will add a dropdown (New / Contacted / Follow-up / Converted / Lost) " +
+    "and colour-coding to the Status column in Enquiries.\n\n" +
+    "Existing data will not be changed.\n\nContinue?"
+  )) return;
+
+  const sheet = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName("Enquiries");
+
+  const statusValues = ["New", "Contacted", "Follow-up", "Converted", "Lost"];
+
+  // Status is column J (10th column) based on your current headers:
+  // Timestamp | Enquiry ID | Name | Mobile | Email | Facility | Date | Guests | Message | Status
+  const statusColumn = 10;
+  const lastRow = Math.max(sheet.getLastRow(), 1000); // covers existing + future rows
+
+  const range = sheet.getRange(2, statusColumn, lastRow - 1, 1);
+
+  // 1. Dropdown validation
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(statusValues, true)
+    .setAllowInvalid(false)
+    .build();
+  range.setDataValidation(rule);
+
+  // 2. Colour-coded conditional formatting -- drop any rule this function
+  // added on a previous run (same range) first, so re-running doesn't pile
+  // up duplicate rules.
+  const rangeA1 = range.getA1Notation();
+  const rules = sheet.getConditionalFormatRules().filter(function (r) {
+    return !r.getRanges().some(function (rg) { return rg.getA1Notation() === rangeA1; });
+  });
+
+  const colours = {
+    "New": "#FFF2CC",       // pale yellow — needs attention
+    "Contacted": "#D9E8FB", // pale blue — in progress
+    "Follow-up": "#FCE4D6", // pale orange — needs action
+    "Converted": "#D9EAD3", // pale green — success
+    "Lost": "#F4CCCC"       // pale red — closed, no sale
+  };
+
+  Object.keys(colours).forEach(status => {
+    const cfRule = SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo(status)
+      .setBackground(colours[status])
+      .setRanges([range])
+      .build();
+    rules.push(cfRule);
+  });
+
+  sheet.setConditionalFormatRules(rules);
+
+  const message =
+    "Done! Status column now has a dropdown (New / Contacted / Follow-up / " +
+    "Converted / Lost) with colour coding. Existing 'New' rows are unaffected.";
+
+  try {
+    // Works only when triggered from the Sheet's UI (e.g. the custom menu).
+    SpreadsheetApp.getUi().alert(message);
+  } catch (e) {
+    // Running directly from the Apps Script editor has no UI context —
+    // log instead so it doesn't throw.
+    Logger.log(message);
+  }
+}
+
+const REMINDER_THRESHOLD_HOURS = 12;
+const OPEN_STATUSES = ["New", "Contacted", "Follow-up"]; // not Converted/Lost
+
+function sendFollowUpReminders() {
+  const sheet = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName("Enquiries");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return; // no data rows yet
+
+  // Columns: A Timestamp | B EnquiryID | C Name | D Mobile | E Email |
+  //          F Facility | G Date | H Guests | I Message | J Status | K Source
+  const data = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  const now = new Date();
+  const overdue = [];
+
+  data.forEach(row => {
+    const [timestamp, enquiryId, name, mobile, , facility, , , , status] = row;
+    if (!timestamp || !status) return;
+    if (OPEN_STATUSES.indexOf(status) === -1) return;
+
+    const ageHours = (now - new Date(timestamp)) / (1000 * 60 * 60);
+    if (ageHours >= REMINDER_THRESHOLD_HOURS) {
+      overdue.push({
+        enquiryId: enquiryId,
+        name: name,
+        mobile: mobile,
+        facility: facility,
+        status: status,
+        ageHours: Math.floor(ageHours)
+      });
+    }
+  });
+
+  if (overdue.length === 0) return; // nothing to report — no email sent
+
+  const lines = overdue.map(o =>
+    `${o.enquiryId} — ${o.name} (${o.mobile}) — ${o.facility} — ` +
+    `Status: ${o.status} — Waiting ${o.ageHours}h`
+  );
+
+  const subject = `L's Park: ${overdue.length} enquir${overdue.length === 1 ? "y needs" : "ies need"} follow-up`;
+  const body =
+    `The following enquiries have been open ${REMINDER_THRESHOLD_HOURS}+ hours ` +
+    `without moving to Converted or Lost:\n\n` +
+    lines.join("\n") +
+    `\n\nOpen the Enquiries sheet to update their status:\n` +
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`;
+
+  MailApp.sendEmail(OWNER_NOTIFY_EMAIL, subject, body);
+}
+
+function installFollowUpTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will turn ON automatic follow-up reminder emails, checked every " +
+    "12 hours, sent to " + OWNER_NOTIFY_EMAIL + ".\n\nContinue?"
+  )) return;
+
+  removeFollowUpTriggerSilently_(); // avoid duplicate triggers if run twice — no confirmation dialog, we already confirmed above
+
+  ScriptApp.newTrigger("sendFollowUpReminders")
+    .timeBased()
+    .everyHours(12)
+    .create();
+
+  const message = "Reminder trigger installed — checking every 12 hours for enquiries open 12+ hours.";
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (e) {
+    Logger.log(message);
+  }
+}
+
+// Menu-facing version — checks role and confirms before turning triggers off.
+function removeFollowUpTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will turn OFF automatic follow-up reminder emails.\n\n" +
+    "You can turn it back on anytime with \"Install 12-hr reminder trigger.\"\n\nContinue?"
+  )) return;
+
+  removeFollowUpTriggerSilently_();
+  SpreadsheetApp.getUi().alert("Reminder trigger removed. No more automatic emails until reinstalled.");
+}
+// Internal helper — the actual deletion logic, no role check or
+// confirmation. Called by both installFollowUpTrigger (to clear old
+// triggers first) and removeFollowUpTrigger (after its own confirmation).
+function removeFollowUpTriggerSilently_() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "sendFollowUpReminders") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
