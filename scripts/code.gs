@@ -1460,3 +1460,339 @@ function closeReservedBadmintonSlot() {
   const result = callAdminAction_("closeReservedBadmintonSlot", { unblockId: unblockId });
   ui.alert(result.success ? result.message : ("Could not close slot: " + result.error));
 }
+
+function setupStatusManagement() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will add a dropdown (New / Contacted / Follow-up / Converted / Lost) " +
+    "and colour-coding to the Status column in Enquiries.\n\n" +
+    "Existing data will not be changed.\n\nContinue?"
+  )) return;
+
+  const sheet = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName("Enquiries");
+
+  const statusValues = ["New", "Contacted", "Follow-up", "Converted", "Lost"];
+
+  // Status is column J (10th column) based on your current headers:
+  // Timestamp | Enquiry ID | Name | Mobile | Email | Facility | Date | Guests | Message | Status
+  const statusColumn = 10;
+  const lastRow = Math.max(sheet.getLastRow(), 1000); // covers existing + future rows
+
+  const range = sheet.getRange(2, statusColumn, lastRow - 1, 1);
+
+  // 1. Dropdown validation
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(statusValues, true)
+    .setAllowInvalid(false)
+    .build();
+  range.setDataValidation(rule);
+
+  // 2. Colour-coded conditional formatting -- drop any rule this function
+  // added on a previous run (same range) first, so re-running doesn't pile
+  // up duplicate rules.
+  const rangeA1 = range.getA1Notation();
+  const rules = sheet.getConditionalFormatRules().filter(function (r) {
+    return !r.getRanges().some(function (rg) { return rg.getA1Notation() === rangeA1; });
+  });
+
+  const colours = {
+    "New": "#FFF2CC",       // pale yellow — needs attention
+    "Contacted": "#D9E8FB", // pale blue — in progress
+    "Follow-up": "#FCE4D6", // pale orange — needs action
+    "Converted": "#D9EAD3", // pale green — success
+    "Lost": "#F4CCCC"       // pale red — closed, no sale
+  };
+
+  Object.keys(colours).forEach(status => {
+    const cfRule = SpreadsheetApp.newConditionalFormatRule()
+      .whenTextEqualTo(status)
+      .setBackground(colours[status])
+      .setRanges([range])
+      .build();
+    rules.push(cfRule);
+  });
+
+  sheet.setConditionalFormatRules(rules);
+
+  const message =
+    "Done! Status column now has a dropdown (New / Contacted / Follow-up / " +
+    "Converted / Lost) with colour coding. Existing 'New' rows are unaffected.";
+
+  try {
+    // Works only when triggered from the Sheet's UI (e.g. the custom menu).
+    SpreadsheetApp.getUi().alert(message);
+  } catch (e) {
+    // Running directly from the Apps Script editor has no UI context —
+    // log instead so it doesn't throw.
+    Logger.log(message);
+  }
+}
+
+const REMINDER_THRESHOLD_HOURS = 12;
+const OPEN_STATUSES = ["New", "Contacted", "Follow-up"]; // not Converted/Lost
+
+// Booking-side reminders (added on top of the Enquiries digest above):
+// how long to wait before re-reminding the same request/booking, and how
+// old a pending request has to be before it's nagged at all.
+const FOLLOWUP_REMINDER_COOLDOWN_HOURS = 24;
+const PENDING_REQUEST_REMINDER_MIN_AGE_HOURS = 24;
+
+// A time-based trigger has no UI to show -- SpreadsheetApp.getUi() throws
+// in that context. Used to skip UI-only steps (role check, the on-screen
+// WhatsApp dialog) when this runs unattended overnight.
+function isInteractive_() {
+  try {
+    SpreadsheetApp.getUi();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function hoursSince_(dateValue) {
+  if (!dateValue) return Infinity;
+  const d = (dateValue instanceof Date) ? dateValue : new Date(dateValue);
+  if (isNaN(d.getTime())) return Infinity;
+  return (new Date().getTime() - d.getTime()) / (1000 * 60 * 60);
+}
+
+// Bookings!F (Booking Date) is stored as plain text (appendRowSafely_
+// forces it, to avoid timezone drift against the website's date input),
+// normally "yyyy-MM-dd". Older manually-typed rows use other formats
+// (e.g. "20-Aug-2026") -- fall back to a plain Date parse for those, and
+// treat anything unparseable as null rather than throwing.
+function parseFlexibleDate_(text) {
+  if (!text) return null;
+  const s = String(text).trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Reads a header cell; if it's blank, writes the given label into it.
+// Lets this function safely add its own tracking column on first run
+// instead of requiring the sheet to be edited by hand first.
+function ensureColumnHeader_(sheet, colIndex1Based, label) {
+  const headerCell = sheet.getRange(1, colIndex1Based);
+  if (!String(headerCell.getValue()).trim()) {
+    headerCell.setValue(label);
+  }
+}
+
+function sendFollowUpReminders() {
+  const interactive = isInteractive_();
+  // Only gate the interactive (menu-click) path -- the 12-hour trigger
+  // has no active user/UI to check against, and needs to keep running
+  // unattended regardless.
+  if (interactive && !requireRole_(["Admin", "Manager"])) return;
+
+  sendEnquiryFollowUpReminders_();
+  const bookingItems = sendBookingFollowUpReminders_();
+
+  if (!interactive || !bookingItems.length) return;
+
+  const ui = SpreadsheetApp.getUi();
+  const rows = bookingItems.map(function (it) {
+    const waButton = it.phone
+      ? '<a href="https://wa.me/91' + String(it.phone).replace(/\D/g, "") + '?text=' + encodeURIComponent(it.message) + '" target="_blank" ' +
+        'style="display:inline-block;background:#25D366;color:#fff;padding:6px 14px;border-radius:16px;text-decoration:none;font-weight:bold;font-size:12px;">📱 WhatsApp</a>'
+      : '<span style="color:#999;font-size:12px;">no phone on file</span>';
+    return '<tr><td style="padding:6px;border-bottom:1px solid #eee;">' + it.kind + '<br><b>' + it.id + '</b></td>' +
+      '<td style="padding:6px;border-bottom:1px solid #eee;">' + it.customerName + (it.emailed ? '<br><span style="color:#666;font-size:11px;">emailed</span>' : '<br><span style="color:#c00;font-size:11px;">no email on file</span>') + '</td>' +
+      '<td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">' + waButton + '</td></tr>';
+  }).join("");
+
+  const html = HtmlService.createHtmlOutput(
+    '<div style="font-family:Arial,sans-serif;font-size:13px;">' +
+    '<p>' + bookingItems.length + ' booking reminder(s) sent by email. Tap WhatsApp for any that need a manual nudge too:</p>' +
+    '<table style="width:100%;border-collapse:collapse;">' + rows + '</table>' +
+    '</div>'
+  ).setWidth(480).setHeight(Math.min(500, 120 + bookingItems.length * 50));
+  ui.showModalDialog(html, "Follow-up reminders sent");
+}
+
+// ── Enquiries digest (unchanged from the original version) ─────────────
+function sendEnquiryFollowUpReminders_() {
+  const sheet = SpreadsheetApp
+    .openById(SPREADSHEET_ID)
+    .getSheetByName("Enquiries");
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return; // no data rows yet
+
+  // Columns: A Timestamp | B EnquiryID | C Name | D Mobile | E Email |
+  //          F Facility | G Date | H Guests | I Message | J Status | K Source
+  const data = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  const now = new Date();
+  const overdue = [];
+
+  data.forEach(row => {
+    const [timestamp, enquiryId, name, mobile, , facility, , , , status] = row;
+    if (!timestamp || !status) return;
+    if (OPEN_STATUSES.indexOf(status) === -1) return;
+
+    const ageHours = (now - new Date(timestamp)) / (1000 * 60 * 60);
+    if (ageHours >= REMINDER_THRESHOLD_HOURS) {
+      overdue.push({
+        enquiryId: enquiryId,
+        name: name,
+        mobile: mobile,
+        facility: facility,
+        status: status,
+        ageHours: Math.floor(ageHours)
+      });
+    }
+  });
+
+  if (overdue.length === 0) return; // nothing to report — no email sent
+
+  const lines = overdue.map(o =>
+    `${o.enquiryId} — ${o.name} (${o.mobile}) — ${o.facility} — ` +
+    `Status: ${o.status} — Waiting ${o.ageHours}h`
+  );
+
+  const subject = `L's Park: ${overdue.length} enquir${overdue.length === 1 ? "y needs" : "ies need"} follow-up`;
+  const body =
+    `The following enquiries have been open ${REMINDER_THRESHOLD_HOURS}+ hours ` +
+    `without moving to Converted or Lost:\n\n` +
+    lines.join("\n") +
+    `\n\nOpen the Enquiries sheet to update their status:\n` +
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`;
+
+  MailApp.sendEmail(OWNER_NOTIFY_EMAIL, subject, body);
+}
+
+// ── Booking-side reminders (new): pending requests + unpaid confirmed
+// bookings, customer-facing. Excludes past-dated unpaid bookings on
+// purpose -- chasing payment for an event that already happened is a
+// collections conversation, not something to auto-email about; those
+// are left for you to handle manually. Returns the list of items
+// reminded, for the interactive WhatsApp dialog in sendFollowUpReminders.
+function sendBookingFollowUpReminders_() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const now = new Date();
+  const items = []; // { id, kind, customerName, phone, emailed, message }
+
+  // -- Pending Booking Requests --------------------------------------
+  const reqSheet = ss.getSheetByName("Booking Requests");
+  ensureColumnHeader_(reqSheet, 14, "Last Reminder Sent"); // column N
+  const reqLastRow = reqSheet.getLastRow();
+  if (reqLastRow >= 2) {
+    const reqRows = reqSheet.getRange(2, 1, reqLastRow - 1, 14).getValues();
+    reqRows.forEach(function (row, i) {
+      const status = String(row[10]).trim(); // K Status
+      if (status !== "New" && status !== "Under Review") return;
+      if (hoursSince_(row[11]) < PENDING_REQUEST_REMINDER_MIN_AGE_HOURS) return; // L Created Date
+      if (hoursSince_(row[13]) < FOLLOWUP_REMINDER_COOLDOWN_HOURS) return; // N Last Reminder Sent
+
+      const requestId = row[0];
+      const customer = findCustomerById_(row[1]); // B Customer ID
+      if (!customer) return;
+      const facilityName = facilityNameById_(row[2]); // C Facility ID
+      const dateStr = row[4]; // E Request Date
+      const slot = row[5]; // F Slot/Requested Time
+
+      const message =
+        "Hi " + customer.name + ", quick update on your " + facilityName + " booking request " +
+        "(" + requestId + ") for " + dateStr + (slot ? ", " + slot : "") + " -- " +
+        "we're still reviewing it and wanted to let you know it hasn't been forgotten. " +
+        "We'll confirm shortly. If your plans have changed, just reply and let us know.";
+
+      const emailed = !!customer.email;
+      if (emailed) sendCustomerEmail_(customer.email, "Your L's Park booking request " + requestId + " -- still in review", message);
+      reqSheet.getRange(2 + i, 14).setValue(now); // N Last Reminder Sent
+
+      items.push({ id: requestId, kind: "Pending request", customerName: customer.name, phone: customer.phone, emailed: emailed, message: message });
+    });
+  }
+
+  // -- Confirmed & not fully paid, booking date not yet passed --------
+  const bkSheet = ss.getSheetByName("Bookings");
+  ensureColumnHeader_(bkSheet, 16, "Last Reminder Sent"); // column P (O is reserved for Amount Charged)
+  const bkLastRow = bkSheet.getLastRow();
+  if (bkLastRow >= 2) {
+    const bkRows = bkSheet.getRange(2, 1, bkLastRow - 1, 16).getValues();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    bkRows.forEach(function (row, i) {
+      const status = String(row[10]).trim(); // K Status
+      const paymentStatus = String(row[11]).trim(); // L Payment Status
+      if (status !== "Confirmed") return;
+      if (paymentStatus !== "Partial" && paymentStatus !== "Unpaid") return;
+
+      const bookingDate = parseFlexibleDate_(row[5]); // F Booking Date (text)
+      if (!bookingDate || bookingDate < todayStart) return; // skip unparseable or past-dated bookings
+
+      if (hoursSince_(row[15]) < FOLLOWUP_REMINDER_COOLDOWN_HOURS) return; // P Last Reminder Sent
+
+      const bookingId = row[0];
+      const customer = findCustomerById_(row[2]); // C Customer ID
+      if (!customer) return;
+      const facilityName = facilityNameById_(row[3]); // D Facility ID
+
+      const message =
+        "Hi " + customer.name + ", reminder about your confirmed " + facilityName + " booking " +
+        "(" + bookingId + ") on " + row[5] + " -- payment is currently marked " + paymentStatus.toLowerCase() +
+        ". Please arrange the remaining payment before the event. Reply here if you have questions.";
+
+      const emailed = !!customer.email;
+      if (emailed) sendCustomerEmail_(customer.email, "Reminder: payment pending for booking " + bookingId, message);
+      bkSheet.getRange(2 + i, 16).setValue(now); // P Last Reminder Sent
+
+      items.push({ id: bookingId, kind: "Unpaid balance", customerName: customer.name, phone: customer.phone, emailed: emailed, message: message });
+    });
+  }
+
+  return items;
+}
+
+function installFollowUpTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will turn ON automatic follow-up reminders, checked every 12 hours: " +
+    "an Enquiries digest to " + OWNER_NOTIFY_EMAIL + ", plus emails to customers with " +
+    "pending booking requests or unpaid confirmed bookings.\n\nContinue?"
+  )) return;
+
+  removeFollowUpTriggerSilently_(); // avoid duplicate triggers if run twice — no confirmation dialog, we already confirmed above
+
+  ScriptApp.newTrigger("sendFollowUpReminders")
+    .timeBased()
+    .everyHours(12)
+    .create();
+
+  const message = "Reminder trigger installed — checking every 12 hours for enquiries, pending requests, and unpaid bookings.";
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (e) {
+    Logger.log(message);
+  }
+}
+
+// Menu-facing version — checks role and confirms before turning triggers off.
+function removeFollowUpTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This will turn OFF automatic follow-up reminder emails.\n\n" +
+    "You can turn it back on anytime with \"Install 12-hr reminder trigger.\"\n\nContinue?"
+  )) return;
+
+  removeFollowUpTriggerSilently_();
+  SpreadsheetApp.getUi().alert("Reminder trigger removed. No more automatic emails until reinstalled.");
+}
+
+// Internal helper — the actual deletion logic, no role check or
+// confirmation. Called by both installFollowUpTrigger (to clear old
+// triggers first) and removeFollowUpTrigger (after its own confirmation).
+function removeFollowUpTriggerSilently_() {
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === "sendFollowUpReminders") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
