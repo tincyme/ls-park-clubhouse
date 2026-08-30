@@ -246,9 +246,10 @@ nav a:last-child{border-bottom:none}
               <input type="text" id="bkWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;">
               <label>Name<input id="bkName" required type="text" placeholder="Your name"></label>
               <div class="form-row">
-                <label>Phone<input id="bkPhone" required type="tel" placeholder="Your phone number"></label>
+                <label>Phone<input id="bkPhone" required type="tel" inputmode="numeric" maxlength="10" placeholder="Your phone number"></label>
                 <label>Email (optional)<input id="bkEmail" type="email" placeholder="you@example.com"></label>
               </div>
+              <p class="form-note-error" id="bkPhoneNote" style="text-align:left;margin:6px 0 0;display:none;"></p>
               <label>Number of guests<input id="bkGuests" type="number" min="1" placeholder="Approx. guests"></label>
               <label id="bkDurationWrap" style="display:none;">Duration
                 <select id="bkDuration">
@@ -278,7 +279,7 @@ nav a:last-child{border-bottom:none}
               </details>
 
               <button class="btn btn-yellow full" id="bookingSubmitBtn" type="submit">Send Booking Request</button>
-              <p class="form-note">We'll save your request and open WhatsApp to confirm.</p>
+              <p class="form-note">We'll save your request and show you a confirmation with a WhatsApp button.</p>
             </form>
           </div>
 
@@ -668,6 +669,13 @@ document.getElementById("bkDuration").addEventListener("change", reValidateDurat
 document.getElementById("bkMode").addEventListener("change", reValidateDuration_);
 document.getElementById("bkGuests").addEventListener("input", reValidateDuration_);
 
+document.getElementById("bkPhone").addEventListener("input", function () {
+  this.value = this.value.replace(/\D/g, "").slice(0, 10);
+  const note = document.getElementById("bkPhoneNote");
+  note.style.display = "none";
+  note.textContent = "";
+});
+
 document.getElementById("bookingRequestForm").addEventListener("submit", async function (e) {
   e.preventDefault();
 
@@ -696,6 +704,15 @@ document.getElementById("bookingRequestForm").addEventListener("submit", async f
   const submitBtn = document.getElementById("bookingSubmitBtn");
   const name = document.getElementById("bkName").value.trim();
   const phone = document.getElementById("bkPhone").value.trim();
+
+  if (!/^[0-9]{10}$/.test(phone)) {
+    const note = document.getElementById("bkPhoneNote");
+    note.textContent = "Please enter a valid 10-digit mobile number.";
+    note.style.display = "block";
+    document.getElementById("bkPhone").focus();
+    return;
+  }
+
   const email = document.getElementById("bkEmail").value.trim();
   const guests = document.getElementById("bkGuests").value;
   const eventType = document.getElementById("bkEventType").value.trim();

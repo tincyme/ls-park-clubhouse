@@ -301,9 +301,10 @@ nav a:last-child{border-bottom:none}
           <input type="text" id="enqWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;">
           <label>Name<input id="name" required type="text" placeholder="Your name"></label>
           <div class="form-row">
-            <label>Phone<input id="phone" required type="tel" placeholder="Your phone number"></label>
+            <label>Phone<input id="phone" required type="tel" inputmode="numeric" maxlength="10" placeholder="Your phone number"></label>
             <label>Email (optional)<input id="email" type="email" placeholder="you@example.com"></label>
           </div>
+          <p class="form-note-error" id="phoneNote" style="text-align:left;margin:6px 0 0;display:none;"></p>
           <label>What are you interested in?
             <select id="facility" required>
             <option value="">Select a facility</option>
@@ -359,7 +360,7 @@ nav a:last-child{border-bottom:none}
 
           <label>Message<textarea id="message" rows="3" placeholder="Tell us what you are planning..."></textarea></label>
           <button class="btn btn-yellow full" id="enquirySubmitBtn" type="submit">💬 Send Enquiry on WhatsApp</button>
-          <p class="form-note" id="enquiryFormNote">We'll prepare your enquiry message and open WhatsApp.</p>
+          <p class="form-note" id="enquiryFormNote">We'll save your enquiry and show you a confirmation with a WhatsApp button.</p>
         </form>
 
         <div id="confirmationPanel" class="form-card" style="display:none;">
@@ -554,7 +555,7 @@ function resetBookingState_() {
   const btn = document.getElementById("enquirySubmitBtn");
   btn.disabled = false;
   btn.textContent = "💬 Send Enquiry on WhatsApp";
-  document.getElementById("enquiryFormNote").textContent = "We'll prepare your enquiry message and open WhatsApp.";
+  document.getElementById("enquiryFormNote").textContent = "We'll save your enquiry and show you a confirmation with a WhatsApp button.";
 }
 
 function selectBookingSlot_(facility, date, slotLabel, showModeSelector, isHourly, startIndex, resourceId, resourceName) {
@@ -577,7 +578,7 @@ function selectBookingSlot_(facility, date, slotLabel, showModeSelector, isHourl
   const submitBtn = document.getElementById("enquirySubmitBtn");
   submitBtn.disabled = false;
   submitBtn.textContent = "Send Booking Request";
-  document.getElementById("enquiryFormNote").textContent = "We'll save your booking request and open WhatsApp to confirm.";
+  document.getElementById("enquiryFormNote").textContent = "We'll save your booking request and show you a confirmation with a WhatsApp button.";
 
   if (isHourly) {
     document.getElementById("bkDuration").value = "1";
@@ -829,6 +830,13 @@ document.getElementById("clearSelectedSlotLink").addEventListener("click", funct
   resetBookingState_();
 });
 
+document.getElementById("phone").addEventListener("input", function () {
+  this.value = this.value.replace(/\D/g, "").slice(0, 10);
+  const note = document.getElementById("phoneNote");
+  note.style.display = "none";
+  note.textContent = "";
+});
+
 document.getElementById("enquiryForm").addEventListener("submit", async function (e) {
   e.preventDefault();
 
@@ -848,8 +856,16 @@ document.getElementById("enquiryForm").addEventListener("submit", async function
   const message = document.getElementById("message").value.trim();
   const email = document.getElementById("email").value.trim();
 
-  if (!name || !phone || !facility) {
-    alert("Please fill in your name, mobile number and facility.");
+  if (!name || !facility) {
+    alert("Please fill in your name and facility.");
+    return;
+  }
+
+  if (!/^[0-9]{10}$/.test(phone)) {
+    const phoneNote = document.getElementById("phoneNote");
+    phoneNote.textContent = "Please enter a valid 10-digit mobile number.";
+    phoneNote.style.display = "block";
+    document.getElementById("phone").focus();
     return;
   }
 
