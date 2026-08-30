@@ -367,8 +367,9 @@ nav a:last-child{border-bottom:none}
             <h3 id="confHeading" style="margin:0 0 8px;font-size:22px;">Enquiry received!</h3>
             <p style="color:var(--muted);margin:0 0 6px;">Reference ID</p>
             <p id="confEnquiryId" style="font-size:20px;font-weight:700;color:#4f83b6;margin:0 0 18px;"></p>
+            <p id="confMessage" style="font-weight:700;margin:0 0 12px;"></p>
             <p id="confSubtext" style="color:var(--muted);margin:0 0 20px;">We've saved your enquiry and opened WhatsApp with your details pre-filled. Please send that message to confirm — our team usually replies within a few hours.</p>
-            <a class="btn btn-outline-blue" href="https://wa.me/919846718106" target="_blank" rel="noopener" style="margin-bottom:10px;display:inline-flex;">Reopen WhatsApp</a>
+            <a class="btn btn-yellow" href="https://wa.me/919846718106" target="_blank" rel="noopener" id="waBtn" style="margin-bottom:10px;display:inline-flex;">&#128172; Send WhatsApp Message</a>
             <br>
             <a href="#enquire" id="sendAnotherLink" style="display:inline-block;margin-top:10px;color:#4f83b6;font-weight:600;">Send another enquiry</a>
           </div>
@@ -851,7 +852,6 @@ document.getElementById("enquiryForm").addEventListener("submit", async function
     submitButton.disabled = true;
     submitButton.textContent = "Sending...";
 
-    const bookingWindow = window.open("", "_blank");
     const bkModeWrap = document.getElementById("bkModeWrap");
     const bookingMode = bkModeWrap.style.display !== "none" ? document.getElementById("bkMode").value : "";
 
@@ -880,7 +880,7 @@ document.getElementById("enquiryForm").addEventListener("submit", async function
       const result = await response.json();
 
       if (result.success) {
-        const dateText = new Date(selectedBookingSlot.date + "T00:00:00").toLocaleDateString("en-IN");
+        const dateText = new Date(selectedBookingSlot.date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
         const whatsappText =
 `Hello Peeds Park Club House,
@@ -898,27 +898,22 @@ Guests: ${guests || "Not specified"}${message ? `\nSpecial request: ${message}` 
 Please confirm this booking. Thank you.`;
 
         const whatsappUrl = `https://wa.me/919846718106?text=${encodeURIComponent(whatsappText)}`;
-        if (bookingWindow && !bookingWindow.closed) {
-          bookingWindow.location.href = whatsappUrl;
-        } else {
-          window.open(whatsappUrl, "_blank");
-        }
 
         document.getElementById("confHeading").textContent = "Booking request sent!";
-        document.getElementById("confSubtext").textContent = "We've saved your booking request and opened WhatsApp with your details pre-filled. Please send that message to confirm — once payment is received we'll confirm your booking.";
+        document.getElementById("confSubtext").textContent = "Tap below to send us the details on WhatsApp so our team can start confirming your request.";
+        document.getElementById("confMessage").textContent = `Your request for ${selectedBookingSlot.facility} for ${dateText}, ${selectedBookingSlot.slot} is sent for confirmation.`;
         document.getElementById("confEnquiryId").textContent = result.requestId;
+        document.getElementById("waBtn").href = whatsappUrl;
         form.style.display = "none";
         document.getElementById("confirmationPanel").style.display = "block";
         resetBookingState_();
         form.reset();
 
       } else {
-        if (bookingWindow && !bookingWindow.closed) bookingWindow.close();
         throw new Error(result.error || "Unable to submit booking request.");
       }
 
     } catch (error) {
-      if (bookingWindow && !bookingWindow.closed) bookingWindow.close();
       console.error("Booking request error:", error);
       alert(error.message && error.message !== "Failed to fetch"
         ? error.message
@@ -933,8 +928,6 @@ Please confirm this booking. Thank you.`;
   // ── Path 2: no slot was checked/picked — plain enquiry, exactly as before.
   submitButton.disabled = true;
   submitButton.textContent = "Sending...";
-
-  const whatsappWindow = window.open("", "_blank");
 
   const payload = {
     name: name,
@@ -961,8 +954,8 @@ Please confirm this booking. Thank you.`;
 
     if (result.success) {
       const dateText = date
-        ? new Date(date + "T00:00:00").toLocaleDateString("en-IN")
-        : "Not specified";
+        ? new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+        : "a date to be confirmed";
 
       const whatsappText =
 `Hello Peeds Park Club House,
@@ -982,26 +975,20 @@ Please share availability and pricing. Thank you.`;
       const whatsappNumber = "919846718106";
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`;
 
-      if (whatsappWindow && !whatsappWindow.closed) {
-        whatsappWindow.location.href = whatsappUrl;
-      } else {
-        window.open(whatsappUrl, "_blank");
-      }
-
       document.getElementById("confHeading").textContent = "Enquiry received!";
-      document.getElementById("confSubtext").textContent = "We've saved your enquiry and opened WhatsApp with your details pre-filled. Please send that message to confirm — our team usually replies within a few hours.";
+      document.getElementById("confSubtext").textContent = "Tap below to send us the details on WhatsApp so our team can get back to you.";
+      document.getElementById("confMessage").textContent = `Your enquiry for ${facility} for ${dateText} is sent for confirmation.`;
       document.getElementById("confEnquiryId").textContent = result.enquiryId;
+      document.getElementById("waBtn").href = whatsappUrl;
       form.style.display = "none";
       document.getElementById("confirmationPanel").style.display = "block";
       form.reset();
 
     } else {
-      if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
       throw new Error(result.error || "Unable to save enquiry.");
     }
 
   } catch (error) {
-    if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
     console.error("Enquiry submission error:", error);
 
     alert(
