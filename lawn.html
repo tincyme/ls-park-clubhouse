@@ -325,10 +325,10 @@ nav a:last-child{border-bottom:none}
     </div>
   </footer>
 
+  <script src="js/config.js"></script>
   <script>
 
-const ENQUIRY_API =
-  "https://script.google.com/macros/s/AKfycbwSGAt5wWrnMFWZ_vO8InNrLH1rd3vvmSpjS_k9evtJQfhEkeyPp5LrnREX0_866JnlCw/exec";
+const ENQUIRY_API = window.PEEDSPARK_CONFIG.ENQUIRY_API;
 const FACILITY = "Lawn";
 
 // Used for a lightweight bot check — a real visitor takes at least a
