@@ -94,6 +94,7 @@ input,select,textarea{width:100%;font:inherit;margin-top:6px;padding:12px;border
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .full{width:100%;border:0;cursor:pointer;font:inherit}
 .form-note{font-size:12px;text-align:center;color:var(--muted);margin:10px 0 0}
+.form-note-error{color:#c0392b;font-size:15px;font-weight:700;text-align:center;margin:10px 0 0}
 .contact-section{padding:65px 0;background:#ffffff}
 .contact-grid{display:flex;justify-content:space-between;gap:40px;align-items:center}
 .contact-grid p{color:var(--muted)}
@@ -473,6 +474,7 @@ function badgeStyle_(status) {
   if (status === "Available") return "background:#D9EAD3;color:#2e6b2e;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
   if (status === "Blocked") return "background:#e0e0e0;color:#555555;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;";
   if (status === "Pending") return "background:#FCE8B2;color:#8a6400;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // awaiting owner approval
+  if (status === "Past") return "background:#e0e0e0;color:#777777;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // slot's start time has already passed today
   return "background:#F4CCCC;color:#9c2b2b;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;"; // Booked / Full
 }
 
@@ -626,6 +628,17 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
   lastHourlySlots = slots;
   lastBookingModel = bookingModel;
 
+  const nowForSlots_ = new Date();
+  const todayForSlots_ = nowForSlots_.getFullYear() + "-" + String(nowForSlots_.getMonth() + 1).padStart(2, "0") + "-" + String(nowForSlots_.getDate()).padStart(2, "0");
+  const isTodayForSlots_ = date === todayForSlots_;
+  const nowMinutesForSlots_ = nowForSlots_.getHours() * 60 + nowForSlots_.getMinutes();
+  function isPastSlot_(startStr) {
+    if (!isTodayForSlots_) return false;
+    const p = String(startStr).split(":");
+    const startMinutes = parseInt(p[0], 10) * 60 + (parseInt(p[1], 10) || 0);
+    return startMinutes <= nowMinutesForSlots_;
+  }
+
   slots.forEach(function (slot, index) {
     const slotLabel = `${slot.start}-${slot.end}`;
 
@@ -647,7 +660,8 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
         courtLabel.style.cssText = "font-size:13px;color:var(--muted);";
         courtRow.appendChild(courtLabel);
 
-        if (court.status === "Available") {
+        const courtEffectiveStatus = (court.status === "Available" && isPastSlot_(slot.start)) ? "Past" : court.status;
+        if (courtEffectiveStatus === "Available") {
           const bookBtn = document.createElement("button");
           bookBtn.textContent = "Request to Book";
           bookBtn.type = "button";
@@ -658,8 +672,8 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
           courtRow.appendChild(bookBtn);
         } else {
           const badge = document.createElement("span");
-          badge.textContent = court.status;
-          badge.style.cssText = badgeStyle_(court.status);
+          badge.textContent = courtEffectiveStatus;
+          badge.style.cssText = badgeStyle_(courtEffectiveStatus);
           courtRow.appendChild(badge);
         }
 
@@ -678,7 +692,8 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
     label.style.fontWeight = "700";
     row.appendChild(label);
 
-    if (slot.status === "Available") {
+    const slotEffectiveStatus = (slot.status === "Available" && isPastSlot_(slot.start)) ? "Past" : slot.status;
+    if (slotEffectiveStatus === "Available") {
       const right = document.createElement("div");
       right.style.cssText = "display:flex;align-items:center;gap:10px;";
 
@@ -697,8 +712,8 @@ function renderHourlySlots_(slots, bookingModel, facility, date) {
       row.appendChild(right);
     } else {
       const badge = document.createElement("span");
-      badge.textContent = slot.status;
-      badge.style.cssText = badgeStyle_(slot.status);
+      badge.textContent = slotEffectiveStatus;
+      badge.style.cssText = badgeStyle_(slotEffectiveStatus);
       row.appendChild(badge);
     }
 
@@ -722,6 +737,7 @@ async function refreshAvailability_() {
   availResults.style.display = "none";
   availSlots.innerHTML = "";
   availNote.textContent = "";
+  availNote.classList.remove("form-note-error");
 
   if (!facility) {
     // "Multiple facilities" / "Other" / nothing selected yet — can't check
@@ -735,6 +751,7 @@ async function refreshAvailability_() {
   const date = document.getElementById("date").value;
   if (!date) {
     availNote.textContent = "Pick a date above, then check availability.";
+    availNote.classList.remove("form-note-error");
     return;
   }
 
@@ -744,9 +761,11 @@ async function refreshAvailability_() {
     String(todayCheck.getDate()).padStart(2, "0");
   if (date < todayCheckStr) {
     availNote.textContent = "Please choose today or a future date.";
+    availNote.classList.add("form-note-error");
     return;
   }
 
+  availNote.classList.remove("form-note-error");
   availNote.textContent = "Checking...";
   availCheckInFlight = true;
   checkBtn.disabled = true;
