@@ -28,15 +28,22 @@ SETUP (one-time, in Command Prompt):
 
     cd F:\\Github\\ls-park-clubhouse
     pip install playwright
-    playwright install chromium
+    playwright install chromium firefox webkit
 
-RUN (any time after that):
+RUN (any time after that) -- runs against Chromium (covers Chrome/Edge),
+Firefox, AND WebKit (covers Safari) by default, one after another, so
+one run tells you if a booking goes through the same way across all
+three real browser engines:
 
     cd F:\\Github\\ls-park-clubhouse
     python tests\\run_tests.py
 
-Exits with code 0 if everything passed, 1 if anything failed --
-so it also works as a pre-checkin gate in a script if you want:
+To test just one engine (faster while iterating):
+    python tests\\run_tests.py --browsers chromium
+
+Exits with code 0 if EVERY browser's run passed, 1 if anything failed
+in any browser -- so it also works as a pre-checkin gate in a script
+if you want:
     python tests\\run_tests.py && git push ...
 ------------------------------------------------------------------
 """
@@ -52,7 +59,7 @@ try:
 except ImportError:
     print("Playwright isn't installed yet. Run:\n")
     print("    pip install playwright")
-    print("    playwright install chromium\n")
+    print("    playwright install chromium firefox webkit\n")
     sys.exit(1)
 
 
@@ -60,13 +67,14 @@ except ImportError:
 # Test bookkeeping
 # ---------------------------------------------------------------------------
 
-RESULTS = []  # list of dicts: section, id, desc, status, detail
+RESULTS = []  # list of dicts: browser, section, id, desc, status, detail
+CURRENT_BROWSER = "chromium"  # updated by main() as it loops over --browsers
 
 
 def record(section, tid, desc, status, detail=""):
-    RESULTS.append({"section": section, "id": tid, "desc": desc, "status": status, "detail": detail})
+    RESULTS.append({"browser": CURRENT_BROWSER, "section": section, "id": tid, "desc": desc, "status": status, "detail": detail})
     mark = {"PASS": "[PASS]", "FAIL": "[FAIL]", "SKIP": "[SKIP]"}[status]
-    line = f"  {mark} {tid:<5} {desc}"
+    line = f"  {mark} [{CURRENT_BROWSER}] {tid:<5} {desc}"
     print(line)
     if status == "FAIL" and detail:
         print(f"           -> {detail}")
@@ -166,7 +174,20 @@ def main():
                          help="Folder containing index.html etc. Defaults to the repo root "
                               "(the parent of this script's folder).")
     parser.add_argument("--headed", action="store_true", help="Show the browser window while testing.")
+    parser.add_argument("--browsers", default="chromium,firefox,webkit",
+                         help="Comma-separated list of engines to run against: chromium (Chrome/Edge), "
+                              "firefox, webkit (Safari). Default runs all three. Example: --browsers chromium")
     args = parser.parse_args()
+
+    requested_browsers = [b.strip().lower() for b in args.browsers.split(",") if b.strip()]
+    valid_browsers = {"chromium", "firefox", "webkit"}
+    unknown = [b for b in requested_browsers if b not in valid_browsers]
+    if unknown:
+        print(f"Unknown browser(s): {', '.join(unknown)} -- choose from chromium, firefox, webkit")
+        sys.exit(1)
+    if not requested_browsers:
+        print("No browsers specified.")
+        sys.exit(1)
 
     site_dir = args.dir or os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     site_dir = os.path.abspath(site_dir)
@@ -183,21 +204,45 @@ def main():
     print(f"Testing site files in: {site_dir}")
     print(f"Run at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-    launch_kwargs = {"headless": not args.headed}
-    exe = os.environ.get("PLAYWRIGHT_CHROMIUM_PATH")
-    if exe:
-        launch_kwargs["executable_path"] = exe
+    global CURRENT_BROWSER
+
+    print(f"Browsers this run: {', '.join(requested_browsers)}")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(**launch_kwargs)
+        engines = {"chromium": p.chromium, "firefox": p.firefox, "webkit": p.webkit}
 
-        run_sanity(browser, base_url)
-        run_enquiry_tests(browser, base_url)
-        run_availability_tests(browser, base_url)
-        run_booking_tests(browser, base_url)
-        run_regression_tests(browser, base_url)
+        for browser_name in requested_browsers:
+            CURRENT_BROWSER = browser_name
+            launch_kwargs = {"headless": not args.headed}
 
-        browser.close()
+            # Only Chromium supports pointing at a specific local executable
+            # (e.g. a portable Chrome install) -- Firefox/WebKit always use
+            # Playwright's own installed browser.
+            if browser_name == "chromium":
+                exe = os.environ.get("PLAYWRIGHT_CHROMIUM_PATH")
+                if exe:
+                    launch_kwargs["executable_path"] = exe
+
+            print()
+            print("=" * 60)
+            print(f"RUNNING UNDER: {browser_name.upper()}")
+            print("=" * 60)
+
+            try:
+                browser = engines[browser_name].launch(**launch_kwargs)
+            except Exception as e:
+                print(f"Could not launch {browser_name}: {e}")
+                print(f"If this is the first time using {browser_name}, run: playwright install {browser_name}")
+                record("SETUP", f"{browser_name}-launch", f"Launch {browser_name}", "FAIL", str(e))
+                continue
+
+            run_sanity(browser, base_url)
+            run_enquiry_tests(browser, base_url)
+            run_availability_tests(browser, base_url)
+            run_booking_tests(browser, base_url)
+            run_regression_tests(browser, base_url)
+
+            browser.close()
 
     print_summary()
 
@@ -632,16 +677,41 @@ def print_summary():
     passed = sum(1 for r in RESULTS if r["status"] == "PASS")
     failed = [r for r in RESULTS if r["status"] == "FAIL"]
     total = len(RESULTS)
+    browsers_run = sorted(set(r["browser"] for r in RESULTS))
 
     print()
     print("=" * 60)
-    print(f"RESULT: {passed}/{total} passed")
+    print(f"OVERALL RESULT: {passed}/{total} passed across {len(browsers_run)} browser(s): {', '.join(browsers_run)}")
+
+    if len(browsers_run) > 1:
+        print()
+        print("Per-browser breakdown:")
+        for b in browsers_run:
+            b_results = [r for r in RESULTS if r["browser"] == b]
+            b_passed = sum(1 for r in b_results if r["status"] == "PASS")
+            b_failed = [r for r in b_results if r["status"] == "FAIL"]
+            status_word = "ALL PASSED" if not b_failed else f"{len(b_failed)} FAILED"
+            print(f"  {b:<10} {b_passed}/{len(b_results)} passed -- {status_word}")
+
     if failed:
-        print(f"\n{len(failed)} FAILED:")
+        print(f"\n{len(failed)} FAILED (across all browsers):")
         for r in failed:
-            print(f"  - [{r['section']}] {r['id']}: {r['desc']}")
+            print(f"  - [{r['browser']}] [{r['section']}] {r['id']}: {r['desc']}")
             if r["detail"]:
                 print(f"      {r['detail']}")
+        # Flag anything that failed in one browser but not another -- the
+        # interesting cross-browser signal ("booking works in Chrome but
+        # not Safari") rather than a bug that's broken everywhere.
+        by_test = {}
+        for r in RESULTS:
+            key = (r["section"], r["id"])
+            by_test.setdefault(key, {})[r["browser"]] = r["status"]
+        inconsistent = {k: v for k, v in by_test.items() if len(set(v.values())) > 1}
+        if inconsistent:
+            print(f"\n{len(inconsistent)} test(s) behaved DIFFERENTLY across browsers (the real cross-browser signal):")
+            for (section, tid), per_browser in inconsistent.items():
+                detail = ", ".join(f"{b}={status}" for b, status in sorted(per_browser.items()))
+                print(f"  - [{section}] {tid}: {detail}")
     print()
     print("Not covered by this script (needs manual checking):")
     print("  D. Owner tools (Approve/Reject/Cancel/Block) -- Google Sheet menu")

@@ -169,6 +169,10 @@ function onOpen() {
     .addItem("Install 12-hr reminder trigger (Admin only)", "installFollowUpTrigger")
     .addItem("Remove reminder trigger (Admin only)", "removeFollowUpTrigger")
     .addSeparator()
+    .addItem("Add Payment button columns to sheets (Admin only)", "setupOneClickPaymentColumns")
+    .addItem("Install one-click Payment buttons (Admin only)", "installPaymentActionTrigger")
+    .addItem("Remove one-click Payment buttons (Admin only)", "removePaymentActionTrigger")
+    .addSeparator()
     .addItem("Open a reserved Badminton slot (Admin only)", "openReservedBadmintonSlot")
     .addItem("Close a reserved Badminton slot (Admin only)", "closeReservedBadmintonSlot")
     .addToUi();

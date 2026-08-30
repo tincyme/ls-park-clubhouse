@@ -1796,3 +1796,208 @@ function removeFollowUpTriggerSilently_() {
     }
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// ONE-CLICK PAYMENT BUTTONS (28 Aug) — no more copying Request/Booking IDs
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Adds a per-row dropdown ("Payment Action") to Booking Requests and
+// Bookings. Picking "Mark Paid" / "Mark Partial" on a row runs the exact
+// same logic as the menu's "Mark payment received" — but reads that
+// row's own ID automatically, instead of you copying it and typing it
+// into a popup box. Routes through the SAME callAdminAction_ privileged
+// channel as every other admin tool here, so it's exactly as safe as the
+// existing menu item — this only changes how the ID gets in, not what
+// happens with it.
+//
+// SETUP (one-time, Admin only):
+// 1. Paste this whole block into code.gs (anywhere is fine — it's
+//    self-contained), and update onOpen() in roles.gs to the version
+//    with the 3 new "Payment Action" menu items.
+// 2. Save. Deploy > Manage deployments > pencil icon > Version: New
+//    version > Deploy (same as any other code change here).
+// 3. From "L's Park Tools" menu, run, in order:
+//      a) "Add Payment button columns to sheets (Admin only)" — adds
+//         the new columns, does NOT touch any existing data.
+//      b) "Install one-click Payment buttons (Admin only)" — turns it on.
+// 4. Test it on one real pending request before relying on it daily —
+//    see the note at the bottom of this block.
+//
+// New columns added (existing columns are untouched):
+//   Booking Requests: N=Payment Action (dropdown) | O=Result | P=WhatsApp
+//   Bookings:          O=Payment Action (dropdown) | P=Result | Q=WhatsApp
+//
+// To turn it off later without removing the columns: run "Remove
+// one-click Payment buttons (Admin only)".
+
+const PAYMENT_ACTION_SHEET_CONFIG_ = {
+  "Booking Requests": { idCol: 1, actionCol: 14, resultCol: 15, waCol: 16 },
+  "Bookings": { idCol: 1, actionCol: 15, resultCol: 16, waCol: 17 }
+};
+
+// ── Setup: add the columns + dropdown (safe to run more than once) ─────
+
+function setupOneClickPaymentColumns() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This adds new columns for a one-click Payment button:\n\n" +
+    "Booking Requests: N (Payment Action) | O (Result) | P (WhatsApp)\n" +
+    "Bookings: O (Payment Action) | P (Result) | Q (WhatsApp)\n\n" +
+    "No existing column or data is touched. Continue?"
+  )) return;
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const reqSheet = ss.getSheetByName("Booking Requests");
+  const bookSheet = ss.getSheetByName("Bookings");
+
+  if (!reqSheet || !bookSheet) {
+    SpreadsheetApp.getUi().alert("Could not find both \"Booking Requests\" and \"Bookings\" sheets — check the tab names.");
+    return;
+  }
+
+  ensureColumnHeader_(reqSheet, 14, "Payment Action");
+  ensureColumnHeader_(reqSheet, 15, "Result");
+  ensureColumnHeader_(reqSheet, 16, "WhatsApp");
+  applyPaymentActionDropdown_(reqSheet, 14);
+
+  ensureColumnHeader_(bookSheet, 15, "Payment Action");
+  ensureColumnHeader_(bookSheet, 16, "Result");
+  ensureColumnHeader_(bookSheet, 17, "WhatsApp");
+  applyPaymentActionDropdown_(bookSheet, 15);
+
+  SpreadsheetApp.getUi().alert(
+    "Done. Columns and dropdowns added.\n\n" +
+    "Next: run \"Install one-click Payment buttons (Admin only)\" once to turn it on."
+  );
+}
+
+function applyPaymentActionDropdown_(sheet, colIndex1Based) {
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["Mark Paid", "Mark Partial"], true)
+    .setAllowInvalid(false)
+    .build();
+  const numRows = Math.max(sheet.getMaxRows() - 1, 500);
+  sheet.getRange(2, colIndex1Based, numRows, 1).setDataValidation(rule);
+}
+
+// ── Install / remove the trigger that actually watches for clicks ──────
+
+function installPaymentActionTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This turns ON one-click Payment buttons: choosing \"Mark Paid\" or " +
+    "\"Mark Partial\" in a row's Payment Action column will run the same " +
+    "check as \"Mark payment received\" for THAT row's own ID — no typing " +
+    "an ID required.\n\n" +
+    "Make sure you already ran \"Add Payment button columns to sheets\" once.\n\n" +
+    "Continue?"
+  )) return;
+
+  removePaymentActionTriggerSilently_();
+
+  ScriptApp.newTrigger("handlePaymentActionEdit_")
+    .forSpreadsheet(SpreadsheetApp.openById(SPREADSHEET_ID))
+    .onEdit()
+    .create();
+
+  SpreadsheetApp.getUi().alert("One-click Payment buttons are ON.");
+}
+
+function removePaymentActionTrigger() {
+  if (!requireRole_(["Admin"])) return;
+
+  if (!confirmAction_(
+    "This turns OFF the one-click Payment buttons. The menu's \"Mark " +
+    "payment received\" keeps working as before, unchanged.\n\nContinue?"
+  )) return;
+
+  removePaymentActionTriggerSilently_();
+  SpreadsheetApp.getUi().alert("One-click Payment buttons are OFF.");
+}
+
+function removePaymentActionTriggerSilently_() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === "handlePaymentActionEdit_") {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+// ── The trigger handler itself ──────────────────────────────────────────
+//
+// Installable onEdit trigger (NOT a simple trigger) — runs under
+// whoever installed it via "Install one-click Payment buttons" above,
+// same privileged-execution idea as the Web App channel used everywhere
+// else in this file. Apps Script does not allow showing dialogs/prompts
+// from a trigger, which is why this uses dropdown values instead of a
+// Yes/No popup, and writes its result into a Result column instead of
+// an alert box.
+function handlePaymentActionEdit_(e) {
+  try {
+    if (!e || !e.range) return;
+
+    const sheet = e.range.getSheet();
+    const config = PAYMENT_ACTION_SHEET_CONFIG_[sheet.getName()];
+    if (!config) return;
+
+    // Only react to a single-cell edit in the Payment Action column
+    // itself — ignore header row, other columns, and multi-cell pastes.
+    if (e.range.getColumn() !== config.actionCol || e.range.getNumColumns() !== 1 || e.range.getNumRows() !== 1) return;
+    const row = e.range.getRow();
+    if (row < 2) return;
+
+    const newValue = String(e.value || "").trim();
+    if (newValue === "") return; // cell was cleared -- nothing to do
+
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      sheet.getRange(row, config.resultCol).setValue("Busy -- try again in a moment.");
+      return;
+    }
+
+    try {
+      if (newValue !== "Mark Paid" && newValue !== "Mark Partial") {
+        sheet.getRange(row, config.actionCol).setValue("");
+        sheet.getRange(row, config.resultCol).setValue("Unrecognized value \"" + newValue + "\" -- please use the dropdown.");
+        return;
+      }
+
+      const id = String(sheet.getRange(row, config.idCol).getValue()).trim();
+
+      // Reset the dropdown back to blank right away, whether this
+      // succeeds or fails, so the row is ready to try again immediately.
+      sheet.getRange(row, config.actionCol).setValue("");
+
+      if (!id) {
+        sheet.getRange(row, config.resultCol).setValue("No ID found in column A for this row.");
+        return;
+      }
+
+      const paymentStatus = newValue === "Mark Paid" ? "Paid" : "Partial";
+      const result = callAdminAction_("markPaymentReceived", { id: id, paymentStatus: paymentStatus });
+
+      const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Kolkata", "dd-MMM HH:mm");
+      sheet.getRange(row, config.resultCol).setValue(
+        (result.success ? "✅ " : "❌ ") + (result.success ? result.message : result.error) + "  [" + stamp + "]"
+      );
+
+      if (result.success && result.customerPhone) {
+        const digitsOnly = String(result.customerPhone).replace(/\D/g, "");
+        const waUrl = "https://wa.me/91" + digitsOnly + "?text=" + encodeURIComponent(result.whatsappText || "");
+        sheet.getRange(row, config.waCol).setFormula('=HYPERLINK("' + waUrl + '","📱 Send WhatsApp")');
+      } else {
+        sheet.getRange(row, config.waCol).setValue("");
+      }
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    try {
+      SpreadsheetApp.getActiveSpreadsheet().toast("Payment button error: " + err, "Error", 10);
+    } catch (e2) {
+      // no active UI to toast to (e.g. edit made by another account) -- swallow
+    }
+  }
+}
