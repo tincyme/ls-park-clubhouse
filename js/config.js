@@ -21,8 +21,7 @@
   // of STAGING_SETUP.md). Until then, staging/local pages will call
   // this placeholder and every request will simply fail loudly
   // instead of silently touching production data.
-  var STAGING_API_URL = "PASTE_STAGING_APPS_SCRIPT_WEB_APP_URL_HERE";
-
+   var STAGING_API_URL = "https://script.google.com/macros/s/AKfycbw5a05JoC1kqZ6rhdh9Bdralv1gXv9teK4EBaqM4yIAZQFK0V997EAYbhfVHlgNmsFb/exec";
   var isProd = PROD_HOSTS.indexOf(window.location.hostname) !== -1;
 
   window.PEEDSPARK_CONFIG = {
