@@ -1,0 +1,13 @@
+# Netlify config for the PeedsPark STAGING pipeline only.
+# Production stays exactly as-is on GitHub Pages (peedspark.com) --
+# this file has no effect there. See STAGING_SETUP.md for setup steps.
+
+[build]
+  publish = "."
+  command = ""
+
+# Every branch/PR gets its own preview URL automatically once this repo
+# is connected on netlify.com (Site settings > Build & deploy > Deploy
+# contexts). No build step is needed since this is a plain static site.
+[build.processing]
+  skip_processing = false
